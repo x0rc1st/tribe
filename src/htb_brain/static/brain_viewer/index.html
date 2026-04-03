@@ -585,7 +585,7 @@
     <aside class="panel">
         <div class="panel-section">
             <div class="panel-title">Region Engagement</div>
-            <div class="radar-placeholder" id="radarChart">Radar chart — available after prediction</div>
+            <canvas id="radarChart" width="400" height="400" style="width:100%;max-width:400px;margin:0 auto;display:block;background:transparent;"></canvas>
         </div>
 
         <div class="panel-section">
@@ -882,9 +882,10 @@
             }
         }
 
-        if (groups && viewer) {
-            viewer.setGroupData(groups);
+        if (groups) {
+            if (viewer) viewer.setGroupData(groups);
             renderRegionList(groups);
+            renderRadarChart(groups);
         }
 
         if (summary) {
@@ -976,15 +977,105 @@
 
         regionList.innerHTML = sorted.map(g => {
             const color = getGroupColor(g.id);
-            const pct = (g.score * 100).toFixed(1);
+            const label = g.score > 1.0 ? 'Strong' : g.score > 0.3 ? 'Moderate' : g.score > -0.3 ? 'Baseline' : 'Low';
             return `
                 <li class="region-item">
                     <span class="region-dot" style="background:${color.hex}"></span>
                     <span class="region-name">${escHtml(g.name)}</span>
-                    <span class="region-score">${pct}%</span>
+                    <span class="region-score" title="z-score: ${g.score.toFixed(2)}">${label}</span>
                 </li>
             `;
         }).join('');
+    }
+
+    // ---- Render radar chart ----
+    function renderRadarChart(groups) {
+        const canvas = document.getElementById('radarChart');
+        if (!canvas || !groups || groups.length === 0) return;
+
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+        const cx = W / 2;
+        const cy = H / 2;
+        const R = Math.min(cx, cy) * 0.75;
+
+        ctx.clearRect(0, 0, W, H);
+
+        const sorted = [...groups].sort((a, b) => a.id - b.id);
+        const n = sorted.length;
+        const angleStep = (2 * Math.PI) / n;
+
+        // Normalize scores to 0-1 for the chart (clamp negatives to 0)
+        const maxScore = Math.max(...sorted.map(g => g.score), 0.01);
+        const values = sorted.map(g => Math.max(0, g.score / maxScore));
+
+        // Draw grid rings
+        ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+        ctx.lineWidth = 1;
+        for (let ring = 0.25; ring <= 1.0; ring += 0.25) {
+            ctx.beginPath();
+            for (let i = 0; i <= n; i++) {
+                const angle = i * angleStep - Math.PI / 2;
+                const x = cx + Math.cos(angle) * R * ring;
+                const y = cy + Math.sin(angle) * R * ring;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.stroke();
+        }
+
+        // Draw axis lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+        for (let i = 0; i < n; i++) {
+            const angle = i * angleStep - Math.PI / 2;
+            ctx.beginPath();
+            ctx.moveTo(cx, cy);
+            ctx.lineTo(cx + Math.cos(angle) * R, cy + Math.sin(angle) * R);
+            ctx.stroke();
+        }
+
+        // Draw filled polygon
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+            const angle = i * angleStep - Math.PI / 2;
+            const r = R * values[i];
+            const x = cx + Math.cos(angle) * r;
+            const y = cy + Math.sin(angle) * r;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(159, 239, 0, 0.15)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(159, 239, 0, 0.8)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw dots and labels
+        ctx.font = '10px monospace';
+        ctx.textAlign = 'center';
+        for (let i = 0; i < n; i++) {
+            const angle = i * angleStep - Math.PI / 2;
+            const r = R * values[i];
+            const x = cx + Math.cos(angle) * r;
+            const y = cy + Math.sin(angle) * r;
+
+            // Dot
+            const color = getGroupColor(sorted[i].id);
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, 2 * Math.PI);
+            ctx.fillStyle = color.hex;
+            ctx.fill();
+
+            // Label at edge
+            const lx = cx + Math.cos(angle) * (R + 18);
+            const ly = cy + Math.sin(angle) * (R + 18);
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+
+            // Shorten group names for the chart
+            const shortName = sorted[i].name.split(' & ')[0].split(' ').slice(0, 2).join(' ');
+            ctx.fillText(shortName, lx, ly + 3);
+        }
     }
 
     // ---- Render summary (right panel) ----
