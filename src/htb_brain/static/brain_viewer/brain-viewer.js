@@ -44,6 +44,7 @@ varying vec3 vNormal;
 varying vec3 vViewPosition;
 
 uniform float uTime;
+uniform float uThreshold; // 0-1, controls which activations are visible
 
 // 10 distinct group colors (neon palette)
 vec3 getGroupColor(float gid) {
@@ -62,7 +63,10 @@ vec3 getGroupColor(float gid) {
 }
 
 void main() {
-    float a = clamp(vActivation, 0.0, 1.0);
+    float raw = clamp(vActivation, 0.0, 1.0);
+
+    // Apply threshold: remap values above threshold to 0-1
+    float a = smoothstep(uThreshold, uThreshold + 0.15, raw);
 
     // Get group-specific base color
     vec3 groupColor = getGroupColor(vGroupIndex);
@@ -161,6 +165,16 @@ class BrainViewer extends HTMLElement {
         }
 
         this._updateActivationAttribute();
+    }
+
+    /**
+     * Set activation threshold (0-1). Lower = more regions visible.
+     * 0.0 = show everything, 0.75 = only top 25%.
+     */
+    setThreshold(value) {
+        if (this._glowMesh) {
+            this._glowMesh.material.uniforms.uThreshold.value = value;
+        }
     }
 
     /**
@@ -378,6 +392,7 @@ class BrainViewer extends HTMLElement {
                 fragmentShader: FRAG_SHADER,
                 uniforms: {
                     uTime: { value: 0 },
+                    uThreshold: { value: 0.5 }, // default: show top ~50%
                 },
                 transparent: true,
                 blending: THREE.AdditiveBlending,

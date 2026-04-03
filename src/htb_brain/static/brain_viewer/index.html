@@ -584,6 +584,17 @@
     <!-- Right Panel -->
     <aside class="panel">
         <div class="panel-section">
+            <div class="panel-title">Sensitivity</div>
+            <div style="display:flex;align-items:center;gap:8px;padding:0 4px;">
+                <span style="font-size:11px;color:#9FEF00;">Focused</span>
+                <input type="range" id="sensitivitySlider" min="0" max="100" value="50"
+                    style="flex:1;accent-color:#9FEF00;cursor:pointer;">
+                <span style="font-size:11px;color:#9FEF00;">Broad</span>
+            </div>
+            <div id="sensitivityLabel" style="text-align:center;font-size:11px;color:#888;margin-top:2px;">Showing top 50%</div>
+        </div>
+
+        <div class="panel-section">
             <div class="panel-title">Region Engagement</div>
             <canvas id="radarChart" width="400" height="400" style="width:100%;max-width:400px;margin:0 auto;display:block;background:transparent;"></canvas>
         </div>
@@ -630,6 +641,17 @@
     const regionList      = document.getElementById('regionList');
     const summaryCard     = document.getElementById('summaryCard');
     const radarChart      = document.getElementById('radarChart');
+    const sensitivitySlider = document.getElementById('sensitivitySlider');
+    const sensitivityLabel = document.getElementById('sensitivityLabel');
+
+    // ---- Sensitivity slider ----
+    sensitivitySlider.addEventListener('input', () => {
+        const val = parseInt(sensitivitySlider.value);
+        // Map slider 0-100 to threshold 0.9-0.0 (inverted: high slider = low threshold = more visible)
+        const threshold = (100 - val) / 100 * 0.9;
+        if (viewer) viewer.setThreshold(threshold);
+        sensitivityLabel.textContent = `Showing top ${val}%`;
+    });
 
     // ---- State ----
     let viewer       = null;

@@ -53,11 +53,13 @@ class Aggregator:
         threshold = float(np.percentile(z_scores, self.threshold_percentile))
         engaged = [name for name, z in region_zscores.items() if z >= threshold]
 
-        # Step 5: Sparsify vertex activations — only top 25% glow, rest zero
-        p75 = np.percentile(mean_activation, 75)
-        p99 = np.percentile(mean_activation, 99)
-        sparse = np.clip((mean_activation - p75) / (p99 - p75 + 1e-8), 0, 1)
-        normalized_vertices = np.power(sparse, 1.5)  # contrast boost
+        # Step 5: Normalize vertex activations to 0-1 (full range, no thresholding)
+        # Thresholding is done client-side via the sensitivity slider
+        vmin, vmax = np.min(mean_activation), np.max(mean_activation)
+        if vmax - vmin > 0:
+            normalized_vertices = (mean_activation - vmin) / (vmax - vmin)
+        else:
+            normalized_vertices = np.zeros_like(mean_activation)
 
         logger.info(
             "Processed: %d regions, %d engaged (threshold z=%.2f at p%d)",
