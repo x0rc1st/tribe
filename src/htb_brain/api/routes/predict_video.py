@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/v1", tags=["video"])
 from htb_brain.api.routes.predict import _jobs, _result_cache, _get_vertex_groups
 
 UPLOAD_DIR = "/workspace/tribe/cache/uploads"
-MAX_VIDEO_SIZE_MB = 500
+MAX_VIDEO_SIZE_MB = 2000  # 2GB
 
 
 def _video_hash(path: str) -> str:

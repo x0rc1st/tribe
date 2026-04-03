@@ -873,7 +873,7 @@
         // Poll for job completion
         async function pollForResult(jobId) {
             const POLL_INTERVAL = 3000; // 3 seconds
-            const MAX_POLLS = 200;      // 10 minutes max
+            const MAX_POLLS = 1200;     // 60 minutes max (video can take a while)
 
             for (let i = 0; i < MAX_POLLS; i++) {
                 await new Promise(r => setTimeout(r, POLL_INTERVAL));

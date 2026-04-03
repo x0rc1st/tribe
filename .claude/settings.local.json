@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no zwxa85l5ghl5o7-64410d0c@ssh.runpod.io)"
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no zwxa85l5ghl5o7-64410d0c@ssh.runpod.io)",
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no -o ConnectTimeout=10 zwxa85l5ghl5o7-64410d0c@ssh.runpod.io \"echo CONNECTED ; exit\")",
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no -o ConnectTimeout=10 zwxa85l5ghl5o7-64410d0c@ssh.runpod.io \"echo CONNECTED && hostname ; exit\")",
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no -o ConnectTimeout=10 c0sj5beetk02h3-64410d0c@ssh.runpod.io \"echo CONNECTED && hostname ; exit\")",
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no c0sj5beetk02h3-64410d0c@ssh.runpod.io)",
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no -o ConnectTimeout=15 c0sj5beetk02h3-64410d0c@ssh.runpod.io)",
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no eur5nkiryiua3l-64410d0c@ssh.runpod.io)",
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no n0kmr8ziji9k8f-64410d0c@ssh.runpod.io)"
     ]
   }
 }
