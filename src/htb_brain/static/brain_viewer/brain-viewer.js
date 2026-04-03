@@ -350,11 +350,11 @@ class BrainViewer extends HTMLElement {
             // ---- Layer 1: Glass brain ----
             // Use MeshStandardMaterial with low opacity for reliable translucent look
             const glassMat = new THREE.MeshStandardMaterial({
-                color: new THREE.Color(0x2a3555),
-                metalness: 0.1,
-                roughness: 0.4,
+                color: new THREE.Color(0x3a4a6b),
+                metalness: 0.15,
+                roughness: 0.35,
                 transparent: true,
-                opacity: 0.15,
+                opacity: 0.3,
                 side: THREE.DoubleSide,
                 depthWrite: false,
             });
