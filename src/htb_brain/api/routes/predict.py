@@ -47,12 +47,42 @@ def _run_pipeline(
     group_scores = translator.translate(result["regions"], result["region_zscores"])
     narrative = generate_summary(group_scores, content_type=content_type)
 
+    # Build per-vertex group index array (20484 ints, 0-10)
+    vertex_groups = _get_vertex_groups(atlas, translator)
+
     return {
         "vertex_activations": result["vertex_activations"].tolist(),
+        "vertex_groups": vertex_groups,
         "group_scores": [gs.to_dict() for gs in group_scores],
         "narrative_summary": narrative,
         "engaged_regions": result["engaged_regions"],
     }
+
+
+def _get_vertex_groups(atlas: BrainAtlas, translator: Translator) -> list[int]:
+    """Map each of 20484 vertices to its capability group (0-10)."""
+    import numpy as np
+    n = 20484
+    n_left = 10242
+    groups = [0] * n
+
+    for label_idx, label_name in enumerate(atlas.label_names):
+        group_info = translator.get_group_for_region(label_name)
+        if group_info is None:
+            continue
+        gid = group_info["id"]
+
+        # Left hemisphere
+        lh_mask = atlas.labels_lh == label_idx
+        for vi in np.where(lh_mask)[0]:
+            groups[vi] = gid
+
+        # Right hemisphere
+        rh_mask = atlas.labels_rh == label_idx
+        for vi in np.where(rh_mask)[0]:
+            groups[vi + n_left] = gid
+
+    return groups
 
 
 def _run_job(job_id: str, text: str, content_type: str,

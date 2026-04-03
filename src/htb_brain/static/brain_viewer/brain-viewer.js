@@ -164,6 +164,21 @@ class BrainViewer extends HTMLElement {
     }
 
     /**
+     * Set per-vertex group indices from the API (20484 ints, 0-10).
+     */
+    setGroupIndices(groupIndicesArray) {
+        if (!this._glowMesh) return;
+        const geom = this._glowMesh.geometry;
+        const attr = geom.getAttribute('groupIndex');
+        if (!attr) return;
+
+        for (let i = 0; i < Math.min(attr.count, groupIndicesArray.length); i++) {
+            attr.array[i] = groupIndicesArray[i];
+        }
+        attr.needsUpdate = true;
+    }
+
+    /**
      * Set group metadata.
      * @param {Array<{id: number, name: string, operator_frame: string, score: number}>} groupsArray
      */

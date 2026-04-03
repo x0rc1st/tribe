@@ -868,15 +868,17 @@
             createViewer('/static/brain_mesh.glb');
         }
 
-        if (activations && viewer) {
-            const arr = new Float32Array(activations);
-            // Wait for mesh to load before setting activations
+        const vertexGroups = result.vertex_groups;
+
+        if (viewer) {
+            const applyData = () => {
+                if (vertexGroups) viewer.setGroupIndices(vertexGroups);
+                if (activations) viewer.setActivations(new Float32Array(activations));
+            };
             if (viewer._meshLoaded) {
-                viewer.setActivations(arr);
+                applyData();
             } else {
-                viewer.addEventListener('mesh-loaded', () => {
-                    viewer.setActivations(arr);
-                }, { once: true });
+                viewer.addEventListener('mesh-loaded', applyData, { once: true });
             }
         }
 
