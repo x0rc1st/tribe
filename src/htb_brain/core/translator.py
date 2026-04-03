@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 
 class GroupScore:
-    __slots__ = ("id", "name", "score", "z_score", "rank", "brain_area",
-                 "neuroscience", "offensive", "defensive", "operator_frame",
-                 "region_scores")
+    __slots__ = ("id", "name", "score", "z_score", "rank", "engagement_pct",
+                 "brain_area", "neuroscience", "offensive", "defensive",
+                 "operator_frame", "region_scores")
 
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
@@ -85,8 +85,15 @@ class Translator:
 
         # Rank by score
         group_scores.sort(key=lambda x: x.score, reverse=True)
+
+        # Compute engagement percentage (0-100) from z-scores
+        # Map: z <= 0 → 0%, max z → 100%
+        max_z = max(gs.score for gs in group_scores) if group_scores else 1.0
+        max_z = max(max_z, 0.01)  # avoid division by zero
+
         for i, gs in enumerate(group_scores):
             gs.rank = i + 1
+            gs.engagement_pct = round(max(0.0, gs.score / max_z) * 100, 1)
 
         logger.info("Translated to %d groups. Top: %s (%.3f)",
                      len(group_scores), group_scores[0].name, group_scores[0].score)

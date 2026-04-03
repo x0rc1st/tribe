@@ -27,6 +27,7 @@ class GroupScoreResponse(BaseModel):
     score: float
     z_score: float
     rank: int
+    engagement_pct: float = 0.0
     brain_area: str
     neuroscience: str
     offensive: str

@@ -344,7 +344,11 @@ class BrainViewer extends HTMLElement {
                 side: THREE.DoubleSide,
                 depthWrite: false,
             });
+            glassMat.polygonOffset = true;
+            glassMat.polygonOffsetFactor = 1;
+            glassMat.polygonOffsetUnits = 1;
             this._glassMesh = new THREE.Mesh(geometry, glassMat);
+            this._glassMesh.renderOrder = 0;
             this._scene.add(this._glassMesh);
 
             // ---- Layer 2: Activation glow ----
@@ -381,7 +385,9 @@ class BrainViewer extends HTMLElement {
                 side: THREE.DoubleSide,
             });
 
-            this._glowMesh = new THREE.Mesh(geometry, glowMat);
+            this._glowMesh = new THREE.Mesh(geometry.clone(), glowMat);
+            this._glowMesh.renderOrder = 1;
+            this._glowMesh.scale.setScalar(1.002); // slight offset to prevent z-fighting
             this._scene.add(this._glowMesh);
 
             // Store vertex count
