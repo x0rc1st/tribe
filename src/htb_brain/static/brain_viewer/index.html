@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRIBE v2 - Brain Engagement Viewer</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Import Map for Three.js r160 -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <style>
+        /* ================================================================
+           TRIBE v2 — HTB Dark Theme
+           ================================================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-deepest:  #0A0E27;
+            --bg-dark:     #111927;
+            --bg-card:     #141d2b;
+            --bg-input:    #1a2332;
+            --border:      #1e2a3a;
+            --border-focus:#2EE7B6;
+            --text-primary:#e2e8f0;
+            --text-secondary:#8896ab;
+            --text-muted:  #4a5568;
+            --neon-green:  #9FEF00;
+            --cyan:        #2EE7B6;
+            --danger:      #FF6B6B;
+            --mono:        'JetBrains Mono', 'Fira Code', monospace;
+            --sans:        'Inter', system-ui, sans-serif;
+        }
+
+        html, body {
+            height: 100%;
+            background: var(--bg-deepest);
+            color: var(--text-primary);
+            font-family: var(--sans);
+            overflow-x: hidden;
+        }
+
+        /* ---- Layout ---- */
+        .app {
+            display: grid;
+            grid-template-columns: 260px 1fr 320px;
+            grid-template-rows: auto 1fr;
+            grid-template-areas:
+                "header header header"
+                "sidebar main   panel";
+            height: 100vh;
+        }
+
+        @media (max-width: 1024px) {
+            .app {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr auto;
+                grid-template-areas:
+                    "header"
+                    "main"
+                    "panel"
+                    "sidebar";
+            }
+            .sidebar { border-right: none; border-top: 1px solid var(--border); }
+            .panel { border-left: none; border-top: 1px solid var(--border); }
+        }
+
+        /* ---- Header ---- */
+        .header {
+            grid-area: header;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 24px;
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-logo {
+            font-family: var(--mono);
+            font-weight: 700;
+            font-size: 18px;
+            color: var(--neon-green);
+            letter-spacing: 0.08em;
+        }
+
+        .header-logo span { color: var(--text-muted); font-weight: 400; }
+
+        .header-sub {
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* ---- Sidebar (history) ---- */
+        .sidebar {
+            grid-area: sidebar;
+            background: var(--bg-dark);
+            border-right: 1px solid var(--border);
+            padding: 16px;
+            overflow-y: auto;
+        }
+
+        .sidebar-title {
+            font-family: var(--mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .history-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .history-item {
+            padding: 10px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .history-item:hover {
+            border-color: var(--cyan);
+            background: var(--bg-input);
+        }
+
+        .history-item-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .history-item-meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+            font-family: var(--mono);
+        }
+
+        .history-empty {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-style: italic;
+        }
+
+        /* ---- Main area ---- */
+        .main {
+            grid-area: main;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* -- Input section -- */
+        .input-section {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            background: var(--bg-dark);
+        }
+
+        .input-section.collapsed .input-body { display: none; }
+        .input-section.collapsed .collapse-icon { transform: rotate(-90deg); }
+
+        .input-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 12px;
+        }
+
+        .input-header h2 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .collapse-icon {
+            color: var(--text-muted);
+            transition: transform 0.2s;
+            font-size: 18px;
+        }
+
+        .input-body {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            max-height: 200px;
+            resize: vertical;
+            padding: 12px;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-family: var(--mono);
+            font-size: 13px;
+            line-height: 1.6;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        textarea:focus { border-color: var(--border-focus); }
+        textarea::placeholder { color: var(--text-muted); }
+
+        .upload-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: stretch;
+        }
+
+        .upload-btn, .submit-btn, .demo-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 18px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-family: var(--mono);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+
+        .upload-btn {
+            background: var(--bg-card);
+            color: var(--text-secondary);
+        }
+        .upload-btn:hover {
+            border-color: var(--cyan);
+            color: var(--text-primary);
+        }
+
+        .submit-btn {
+            background: var(--neon-green);
+            color: #0A0E27;
+            border-color: var(--neon-green);
+            font-weight: 700;
+        }
+        .submit-btn:hover { background: #B6FF33; }
+        .submit-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .demo-btn {
+            background: var(--bg-card);
+            color: var(--cyan);
+            border-color: var(--cyan);
+        }
+        .demo-btn:hover {
+            background: rgba(46, 231, 182, 0.08);
+        }
+
+        /* -- Video drop zone -- */
+        .drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-family: var(--mono);
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 200px;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .drop-zone.drag-over {
+            border-color: var(--cyan);
+            background: rgba(46,231,182,0.04);
+            color: var(--cyan);
+        }
+        .drop-zone-icon { font-size: 24px; opacity: 0.5; }
+        .drop-zone-file {
+            color: var(--neon-green);
+            font-weight: 600;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        input[type="file"] { display: none; }
+
+        /* -- Error / status -- */
+        .status-bar {
+            padding: 8px 24px;
+            font-family: var(--mono);
+            font-size: 12px;
+            display: none;
+        }
+        .status-bar.visible { display: block; }
+        .status-bar.error { background: rgba(255,107,107,0.1); color: var(--danger); }
+        .status-bar.info  { background: rgba(46,231,182,0.06); color: var(--cyan); }
+
+        /* -- Brain viewer area -- */
+        .viewer-area {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        brain-viewer {
+            width: 100%;
+            height: 100%;
+        }
+
+        .viewer-placeholder {
+            text-align: center;
+            color: var(--text-muted);
+            font-family: var(--mono);
+            font-size: 13px;
+        }
+
+        .viewer-placeholder .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+            opacity: 0.3;
+        }
+
+        /* Loading overlay */
+        .loading-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(10, 14, 39, 0.85);
+            z-index: 30;
+            transition: opacity 0.4s;
+        }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+        .loading-pulse {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(159,239,0,0.18) 0%, transparent 70%);
+            box-shadow: 0 0 60px rgba(46,231,182,0.25);
+            animation: pulse-brain 2s ease-in-out infinite;
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        @keyframes pulse-brain {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50%      { transform: scale(1.2); opacity: 1; }
+        }
+
+        /* ---- Right Panel ---- */
+        .panel {
+            grid-area: panel;
+            background: var(--bg-dark);
+            border-left: 1px solid var(--border);
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .panel-section {
+            margin-bottom: 24px;
+        }
+
+        .panel-title {
+            font-family: var(--mono);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .radar-placeholder {
+            width: 100%;
+            height: 240px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 12px;
+            font-family: var(--mono);
+        }
+
+        .summary-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 3px solid var(--neon-green);
+            border-radius: 6px;
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--text-secondary);
+        }
+
+        .summary-card h4 {
+            color: var(--text-primary);
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .summary-card p {
+            margin-bottom: 8px;
+        }
+
+        .summary-card code {
+            background: var(--bg-input);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--cyan);
+        }
+
+        .summary-empty {
+            color: var(--text-muted);
+            font-size: 12px;
+            font-style: italic;
+        }
+
+        /* Region list in panel */
+        .region-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .region-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: var(--bg-card);
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .region-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .region-name {
+            flex: 1;
+            color: var(--text-primary);
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .region-score {
+            font-family: var(--mono);
+            font-weight: 700;
+            color: var(--neon-green);
+            font-size: 12px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #2a3a4f; }
+    </style>
+</head>
+<body>
+
+<div class="app">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-logo">TRIBE<span>v2</span></div>
+        <div class="header-sub">Brain Engagement Viewer</div>
+    </header>
+
+    <!-- Sidebar: Prediction History -->
+    <aside class="sidebar">
+        <div class="sidebar-title">Prediction History</div>
+        <ul class="history-list" id="historyList">
+            <li class="history-empty">No predictions yet</li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <section class="main">
+        <!-- Input Section -->
+        <div class="input-section" id="inputSection">
+            <div class="input-header" id="inputHeader">
+                <h2>Content Input</h2>
+                <span class="collapse-icon">&#9660;</span>
+            </div>
+            <div class="input-body">
+                <textarea id="textInput" placeholder="Paste text content here for brain engagement prediction..."></textarea>
+
+                <div class="upload-row">
+                    <!-- File upload -->
+                    <label class="upload-btn" for="fileInput">
+                        &#128196; Upload .txt / .md
+                    </label>
+                    <input type="file" id="fileInput" accept=".txt,.md,.text">
+
+                    <!-- Video drop zone -->
+                    <div class="drop-zone" id="dropZone">
+                        <div class="drop-zone-icon">&#127909;</div>
+                        <div>Drop .mp4 / .webm here</div>
+                        <div class="drop-zone-file" id="dropFileName"></div>
+                    </div>
+                </div>
+
+                <div class="upload-row">
+                    <button class="submit-btn" id="submitBtn" disabled>Predict Engagement</button>
+                    <button class="demo-btn" id="demoBtn">Load Demo Data</button>
+                    <label class="upload-btn" for="meshInput">
+                        &#129504; Load GLB Mesh
+                    </label>
+                    <input type="file" id="meshInput" accept=".glb,.gltf">
+                </div>
+            </div>
+        </div>
+
+        <!-- Status bar -->
+        <div class="status-bar" id="statusBar"></div>
+
+        <!-- Viewer Area -->
+        <div class="viewer-area" id="viewerArea">
+            <div class="viewer-placeholder" id="viewerPlaceholder">
+                <div class="icon">&#129504;</div>
+                <div>Load a GLB mesh and submit content or use demo data to visualize brain engagement.</div>
+            </div>
+
+            <div class="loading-overlay hidden" id="loadingOverlay">
+                <div class="loading-pulse"></div>
+                <div class="loading-text">Processing prediction...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Right Panel -->
+    <aside class="panel">
+        <div class="panel-section">
+            <div class="panel-title">Region Engagement</div>
+            <div class="radar-placeholder" id="radarChart">Radar chart — available after prediction</div>
+        </div>
+
+        <div class="panel-section">
+            <div class="panel-title">Top Regions</div>
+            <ul class="region-list" id="regionList">
+                <li class="summary-empty">No data yet</li>
+            </ul>
+        </div>
+
+        <div class="panel-section">
+            <div class="panel-title">Narrative Summary</div>
+            <div id="summaryCard">
+                <p class="summary-empty">Submit content to see engagement summary.</p>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<!-- ================================================================
+     App Script
+     ================================================================ -->
+<script type="module">
+    // Import the brain-viewer component (registers itself)
+    import './brain-viewer.js';
+    import { activationToColor, getGroupColor } from './colormaps.js';
+
+    // ---- DOM refs ----
+    const textInput       = document.getElementById('textInput');
+    const fileInput       = document.getElementById('fileInput');
+    const meshInput       = document.getElementById('meshInput');
+    const dropZone        = document.getElementById('dropZone');
+    const dropFileName    = document.getElementById('dropFileName');
+    const submitBtn       = document.getElementById('submitBtn');
+    const demoBtn         = document.getElementById('demoBtn');
+    const statusBar       = document.getElementById('statusBar');
+    const viewerArea      = document.getElementById('viewerArea');
+    const viewerPlaceholder = document.getElementById('viewerPlaceholder');
+    const loadingOverlay  = document.getElementById('loadingOverlay');
+    const inputHeader     = document.getElementById('inputHeader');
+    const inputSection    = document.getElementById('inputSection');
+    const historyList     = document.getElementById('historyList');
+    const regionList      = document.getElementById('regionList');
+    const summaryCard     = document.getElementById('summaryCard');
+    const radarChart      = document.getElementById('radarChart');
+
+    // ---- State ----
+    let viewer       = null;
+    let videoFile    = null;
+    let meshUrl      = null;
+    let meshObjUrl   = null; // object URL to revoke
+
+    const VERTEX_COUNT = 20484;
+    const API_URL      = '/api/v1/predict';
+    const MAX_TEXT_KB  = 100;
+    const MAX_VIDEO_MB = 500;
+
+    // ---- Input validation ----
+    function updateSubmitState() {
+        const hasText  = textInput.value.trim().length > 0;
+        const hasVideo = videoFile !== null;
+        submitBtn.disabled = !(hasText || hasVideo);
+    }
+
+    textInput.addEventListener('input', updateSubmitState);
+
+    // ---- File upload (.txt/.md) ----
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        if (file.size > MAX_TEXT_KB * 1024) {
+            showStatus(`File too large. Maximum ${MAX_TEXT_KB}KB.`, 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            textInput.value = e.target.result;
+            updateSubmitState();
+            showStatus(`Loaded: ${file.name}`, 'info');
+        };
+        reader.readAsText(file);
+    });
+
+    // ---- GLB mesh upload ----
+    meshInput.addEventListener('change', () => {
+        const file = meshInput.files[0];
+        if (!file) return;
+
+        if (meshObjUrl) URL.revokeObjectURL(meshObjUrl);
+        meshObjUrl = URL.createObjectURL(file);
+        meshUrl = meshObjUrl;
+
+        createViewer(meshUrl);
+        showStatus(`Mesh loaded: ${file.name}`, 'info');
+    });
+
+    // ---- Video drag & drop ----
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+
+        if (!file.type.match(/^video\/(mp4|webm)$/)) {
+            showStatus('Only .mp4 and .webm video files are accepted.', 'error');
+            return;
+        }
+
+        if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+            showStatus(`Video too large. Maximum ${MAX_VIDEO_MB}MB.`, 'error');
+            return;
+        }
+
+        videoFile = file;
+        dropFileName.textContent = file.name;
+        updateSubmitState();
+        showStatus(`Video selected: ${file.name}`, 'info');
+    });
+
+    // Also allow clicking drop zone to open file picker
+    const videoInput = document.createElement('input');
+    videoInput.type = 'file';
+    videoInput.accept = '.mp4,.webm';
+    videoInput.style.display = 'none';
+    document.body.appendChild(videoInput);
+
+    dropZone.addEventListener('click', () => videoInput.click());
+    videoInput.addEventListener('change', () => {
+        const file = videoInput.files[0];
+        if (!file) return;
+
+        if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+            showStatus(`Video too large. Maximum ${MAX_VIDEO_MB}MB.`, 'error');
+            return;
+        }
+
+        videoFile = file;
+        dropFileName.textContent = file.name;
+        updateSubmitState();
+        showStatus(`Video selected: ${file.name}`, 'info');
+    });
+
+    // ---- Collapsible input section ----
+    inputHeader.addEventListener('click', () => {
+        inputSection.classList.toggle('collapsed');
+    });
+
+    // ---- Create / replace viewer ----
+    function createViewer(url) {
+        if (viewer) viewer.remove();
+        viewerPlaceholder.style.display = 'none';
+
+        viewer = document.createElement('brain-viewer');
+        viewer.setAttribute('data-mesh', url);
+        viewerArea.appendChild(viewer);
+
+        viewer.addEventListener('mesh-loaded', (e) => {
+            showStatus(`Mesh loaded — ${e.detail.vertexCount} vertices`, 'info');
+        });
+    }
+
+    // ---- Status bar ----
+    function showStatus(msg, type = 'info') {
+        statusBar.textContent = msg;
+        statusBar.className = 'status-bar visible ' + type;
+
+        clearTimeout(statusBar._timer);
+        if (type === 'info') {
+            statusBar._timer = setTimeout(() => {
+                statusBar.classList.remove('visible');
+            }, 4000);
+        }
+    }
+
+    // ---- Submit prediction ----
+    submitBtn.addEventListener('click', async () => {
+        await submitPrediction();
+    });
+
+    async function submitPrediction() {
+        const text = textInput.value.trim();
+
+        if (text.length > MAX_TEXT_KB * 1024) {
+            showStatus(`Text too large. Maximum ${MAX_TEXT_KB}KB.`, 'error');
+            return;
+        }
+
+        submitBtn.disabled = true;
+        loadingOverlay.classList.remove('hidden');
+        showStatus('Sending prediction request...', 'info');
+
+        try {
+            const formData = new FormData();
+            if (text) formData.append('text', text);
+            if (videoFile) formData.append('video', videoFile);
+
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 600000); // 10 min timeout
+
+            const response = await fetch(API_URL, {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeout);
+
+            if (!response.ok) {
+                const errBody = await response.text();
+                throw new Error(`Server returned ${response.status}: ${errBody}`);
+            }
+
+            const result = await response.json();
+            handlePredictionResult(result, text);
+
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                showStatus('Request timed out. The first prediction is slow (~3 min) due to model warm-up. Try again.', 'error');
+            } else {
+                showStatus(`Error: ${err.message}`, 'error');
+            }
+        } finally {
+            loadingOverlay.classList.add('hidden');
+            updateSubmitState();
+        }
+    }
+
+    // ---- Handle API result ----
+    function handlePredictionResult(result, inputText) {
+        // API returns: vertex_activations, group_scores, narrative_summary, engaged_regions
+        const activations = result.vertex_activations || result.activations;
+        const groups = result.group_scores || result.groups;
+        const summary = result.narrative_summary || result.summary;
+
+        // Auto-create viewer if it doesn't exist yet
+        if (!viewer) {
+            createViewer('/static/brain_mesh.glb');
+        }
+
+        if (activations && viewer) {
+            const arr = new Float32Array(activations);
+            // Wait for mesh to load before setting activations
+            if (viewer._meshLoaded) {
+                viewer.setActivations(arr);
+            } else {
+                viewer.addEventListener('mesh-loaded', () => {
+                    viewer.setActivations(arr);
+                }, { once: true });
+            }
+        }
+
+        if (groups && viewer) {
+            viewer.setGroupData(groups);
+            renderRegionList(groups);
+        }
+
+        if (summary) {
+            renderSummary(summary);
+        }
+
+        showStatus('Prediction complete.', 'info');
+        inputSection.classList.add('collapsed');
+
+        // Save to history
+        savePrediction(inputText, result);
+    }
+
+    // ---- Demo data ----
+    demoBtn.addEventListener('click', () => {
+        loadDemoData();
+    });
+
+    function loadDemoData() {
+        // If no viewer, create one with placeholder (it will show loading state)
+        // Without a real GLB, we cannot render the 3D brain, but we can still
+        // demonstrate the activation data flow and UI panels.
+
+        showStatus('Loading demo activation data...', 'info');
+
+        // Generate random activations
+        const activations = new Float32Array(VERTEX_COUNT);
+        // Create several "hot spots" using gaussian-like blobs
+        const hotspots = [];
+        const numHotspots = 8 + Math.floor(Math.random() * 6);
+        for (let h = 0; h < numHotspots; h++) {
+            hotspots.push({
+                center: Math.floor(Math.random() * VERTEX_COUNT),
+                radius: 200 + Math.random() * 1500,
+                intensity: 0.3 + Math.random() * 0.7,
+            });
+        }
+
+        for (let i = 0; i < VERTEX_COUNT; i++) {
+            let val = Math.random() * 0.05; // base noise
+            for (const hs of hotspots) {
+                const dist = Math.abs(i - hs.center);
+                const falloff = Math.exp(-(dist * dist) / (2 * hs.radius * hs.radius));
+                val += hs.intensity * falloff;
+            }
+            activations[i] = Math.min(1.0, val);
+        }
+
+        // Generate demo group data
+        const demoGroups = [
+            { id: 0, name: 'Visual Cortex',           operator_frame: 'Image recognition and spatial reasoning', score: 0.82 },
+            { id: 1, name: 'Prefrontal Cortex',       operator_frame: 'Decision making and working memory', score: 0.74 },
+            { id: 2, name: 'Temporal Lobe',            operator_frame: 'Language comprehension and memory', score: 0.65 },
+            { id: 3, name: 'Motor Cortex',             operator_frame: 'Motor planning and execution', score: 0.41 },
+            { id: 4, name: 'Parietal Lobe',            operator_frame: 'Sensory integration and attention', score: 0.58 },
+            { id: 5, name: 'Hippocampus',              operator_frame: 'Memory formation and retrieval', score: 0.71 },
+            { id: 6, name: 'Amygdala',                 operator_frame: 'Emotional processing', score: 0.33 },
+            { id: 7, name: 'Cerebellum',               operator_frame: 'Coordination and procedural learning', score: 0.49 },
+            { id: 8, name: 'Broca Area',               operator_frame: 'Speech production', score: 0.62 },
+            { id: 9, name: 'Wernicke Area',            operator_frame: 'Language comprehension', score: 0.55 },
+            { id: 10, name: 'Anterior Cingulate',      operator_frame: 'Error detection and conflict monitoring', score: 0.47 },
+            { id: 11, name: 'Insula',                  operator_frame: 'Interoception and empathy', score: 0.38 },
+        ];
+
+        if (viewer) {
+            viewer.setActivations(activations);
+            viewer.setGroupData(demoGroups);
+        }
+
+        renderRegionList(demoGroups);
+        renderSummary(
+            'The submitted content primarily engages **visual processing** and **prefrontal executive function**, ' +
+            'with significant activation in the **temporal language areas**. The hippocampus shows strong engagement, ' +
+            'suggesting the content is highly memorable. Motor cortex activation is moderate, indicating some ' +
+            'procedural learning components. Overall engagement score: `72.4%`.'
+        );
+
+        showStatus('Demo data loaded. Load a GLB mesh to visualize in 3D.', 'info');
+
+        // Save to history
+        savePrediction('[Demo Data]', { groups: demoGroups });
+    }
+
+    // ---- Render region list (right panel) ----
+    function renderRegionList(groups) {
+        if (!groups || groups.length === 0) return;
+
+        const sorted = [...groups].sort((a, b) => b.score - a.score);
+
+        regionList.innerHTML = sorted.map(g => {
+            const color = getGroupColor(g.id);
+            const pct = (g.score * 100).toFixed(1);
+            return `
+                <li class="region-item">
+                    <span class="region-dot" style="background:${color.hex}"></span>
+                    <span class="region-name">${escHtml(g.name)}</span>
+                    <span class="region-score">${pct}%</span>
+                </li>
+            `;
+        }).join('');
+    }
+
+    // ---- Render summary (right panel) ----
+    function renderSummary(markdown) {
+        // Simple markdown rendering: bold, code, paragraphs
+        let html = escHtml(markdown)
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/`(.*?)`/g, '<code>$1</code>')
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>');
+
+        summaryCard.innerHTML = `<div class="summary-card"><p>${html}</p></div>`;
+    }
+
+    // ---- Prediction History (localStorage) ----
+    const HISTORY_KEY = 'tribe_v2_history';
+
+    function loadHistory() {
+        try {
+            return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        } catch { return []; }
+    }
+
+    function savePrediction(inputText, result) {
+        const history = loadHistory();
+        const entry = {
+            id: Date.now(),
+            title: inputText.substring(0, 60) || 'Untitled',
+            timestamp: new Date().toISOString(),
+            groups: result.groups || [],
+            summary: result.summary || '',
+        };
+        history.unshift(entry);
+        if (history.length > 50) history.length = 50; // cap
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+        renderHistory();
+    }
+
+    function renderHistory() {
+        const history = loadHistory();
+        if (history.length === 0) {
+            historyList.innerHTML = '<li class="history-empty">No predictions yet</li>';
+            return;
+        }
+
+        historyList.innerHTML = history.map(entry => {
+            const date = new Date(entry.timestamp);
+            const timeStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return `
+                <li class="history-item" data-id="${entry.id}">
+                    <div class="history-item-title">${escHtml(entry.title)}</div>
+                    <div class="history-item-meta">${timeStr}</div>
+                </li>
+            `;
+        }).join('');
+
+        // Click to restore
+        historyList.querySelectorAll('.history-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const id = parseInt(el.dataset.id, 10);
+                const entry = history.find(h => h.id === id);
+                if (entry) {
+                    if (entry.groups) renderRegionList(entry.groups);
+                    if (entry.summary) renderSummary(entry.summary);
+                    showStatus(`Restored: ${entry.title.substring(0, 40)}`, 'info');
+                }
+            });
+        });
+    }
+
+    // ---- Utility ----
+    function escHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    // ---- Init ----
+    renderHistory();
+    updateSubmitState();
+
+    // If data-mesh attribute is set on page load (e.g. from server template), auto-create viewer
+    const defaultMesh = document.querySelector('brain-viewer')?.getAttribute('data-mesh');
+    if (defaultMesh) {
+        viewer = document.querySelector('brain-viewer');
+    }
+</script>
+
+</body>
+</html>

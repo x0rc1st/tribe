@@ -1,0 +1,137 @@
+{
+  "groups": [
+    {
+      "id": 1,
+      "name": "Strategic Thinking & Decision-Making",
+      "brain_area": "Prefrontal cortex",
+      "regions": [
+        "G_front_sup", "G_front_middle", "G_front_inf-Triangul", "G_front_inf-Orbital",
+        "G_orbital", "G_rectus", "G_and_S_frontomargin", "G_and_S_transv_frontopol",
+        "S_front_sup", "S_front_middle", "S_front_inf", "S_orbital_lateral",
+        "S_orbital_med-olfact", "S_orbital-H_Shaped", "S_suborbital"
+      ],
+      "neuroscience": "Executive function, working memory, planning, cognitive flexibility, value-based decisions, abstract reasoning, metacognition",
+      "offensive": "Formulating attack chains, sequencing exploitation phases, planning lateral movement",
+      "defensive": "Designing defense-in-depth strategies, incident response planning, threat modeling",
+      "operator_frame": "The mission command center \u2014 like a general planning operations or a surgeon sequencing a complex procedure"
+    },
+    {
+      "id": 2,
+      "name": "Procedural Fluency & Muscle Memory",
+      "brain_area": "Sensorimotor strip",
+      "regions": [
+        "G_precentral", "G_postcentral", "G_and_S_paracentral", "G_and_S_subcentral",
+        "S_central", "S_precentral-inf-part", "S_precentral-sup-part", "S_postcentral"
+      ],
+      "neuroscience": "Motor planning, procedural memory, action sequencing, sensorimotor integration, fine/gross motor control",
+      "offensive": "Operationalizing exploit techniques into repeatable workflows, command-line fluency",
+      "defensive": "Rapid firewall rule deployment, scripted response procedures, forensic tool chains",
+      "operator_frame": "Knowledge translated into automatic action \u2014 like a pilot's stick-and-throttle instincts or a surgeon's trained hands"
+    },
+    {
+      "id": 3,
+      "name": "Technical Comprehension & Language Processing",
+      "brain_area": "Perisylvian language network",
+      "regions": [
+        "G_front_inf-Opercular", "G_temp_sup-Lateral", "G_temp_sup-Plan_tempo",
+        "G_temp_sup-Plan_polar", "G_temp_sup-G_T_transv", "G_temporal_middle",
+        "S_temporal_sup", "S_temporal_transverse", "Lat_Fis-ant-Horizont",
+        "Lat_Fis-ant-Vertical", "Lat_Fis-post"
+      ],
+      "neuroscience": "Syntax parsing, semantic understanding, speech comprehension, reading, complex sequence processing, auditory processing",
+      "offensive": "Parsing CVE descriptions, understanding exploit code, processing protocol specifications",
+      "defensive": "Reading threat intel advisories, understanding SIEM alert logic, interpreting log syntax",
+      "operator_frame": "Decoding complex technical briefings under pressure \u2014 like a pilot parsing rapid ATC instructions"
+    },
+    {
+      "id": 4,
+      "name": "Pattern Recognition & Anomaly Detection",
+      "brain_area": "Occipital + ventral visual",
+      "regions": [
+        "G_cuneus", "G_occipital_sup", "G_occipital_middle", "G_and_S_occipital_inf",
+        "Pole_occipital", "G_oc-temp_lat-fusifor", "G_oc-temp_med-Lingual",
+        "G_temporal_inf", "S_calcarine", "S_occipital_ant", "S_oc_middle_and_Lunatus",
+        "S_oc_sup_and_transversal", "S_oc-temp_lat", "S_oc-temp_med_and_Lingual",
+        "S_temporal_inf", "S_parieto_occipital"
+      ],
+      "neuroscience": "Visual feature detection, expert pattern recognition, anomaly detection, color/form processing, visual memory, face/object recognition",
+      "offensive": "Spotting misconfigurations in scan output, recognizing vulnerable patterns in code",
+      "defensive": "Detecting anomalies in log streams, recognizing attack signatures, PCAP analysis",
+      "operator_frame": "A fighter pilot's ability to spot a threat in a cluttered radar display \u2014 trained eyes that see what others miss"
+    },
+    {
+      "id": 5,
+      "name": "Situational Awareness & Focus",
+      "brain_area": "Dorsal parietal",
+      "regions": [
+        "G_parietal_sup", "S_intrapariet_and_P_trans", "S_subparietal"
+      ],
+      "neuroscience": "Spatial reasoning, sustained/directed attention, numerical cognition, mental model maintenance",
+      "offensive": "Maintaining awareness of the full attack surface, tracking pivoted sessions and credentials",
+      "defensive": "Monitoring network topology, tracking incident scope, correlating multi-source alerts",
+      "operator_frame": "Maintaining the big picture while executing the details \u2014 the pilot's instrument scan pattern that keeps everything in view"
+    },
+    {
+      "id": 6,
+      "name": "Adaptive Response & Error Recovery",
+      "brain_area": "Anterior/mid cingulate",
+      "regions": [
+        "G_and_S_cingul-Ant", "G_and_S_cingul-Mid-Ant", "G_and_S_cingul-Mid-Post",
+        "S_cingul-Marginalis", "S_pericallosal"
+      ],
+      "neuroscience": "Error detection, conflict monitoring, strategy switching, cognitive control, motivation, pain/frustration processing",
+      "offensive": "Recognizing when an exploit path fails, pivoting to alternative vectors mid-operation",
+      "defensive": "Distinguishing false positives from real threats, adjusting detection rules on the fly",
+      "operator_frame": "A surgeon recognizing complications and adapting the procedure in real-time \u2014 sharp reflexes in the cognitive domain"
+    },
+    {
+      "id": 7,
+      "name": "Memory Encoding & Knowledge Retention",
+      "brain_area": "Medial temporal",
+      "regions": [
+        "G_oc-temp_med-Parahip", "Pole_temporal", "S_collat_transv_ant", "S_collat_transv_post"
+      ],
+      "neuroscience": "Episodic memory encoding, contextual/scene memory, spatial navigation memory, semantic memory",
+      "offensive": "Encoding new exploitation techniques, building mental maps of target environments",
+      "defensive": "Retaining indicator patterns, building mental models of attacker behavior over time",
+      "operator_frame": "The difference between cramming for an exam and actually retaining field knowledge \u2014 building the expertise that sticks"
+    },
+    {
+      "id": 8,
+      "name": "Knowledge Synthesis & Transfer",
+      "brain_area": "Inferior parietal",
+      "regions": [
+        "G_pariet_inf-Angular", "G_pariet_inf-Supramar", "S_interm_prim-Jensen"
+      ],
+      "neuroscience": "Analogical reasoning, cross-modal integration, mathematical reasoning, phonological processing, applying abstract principles to new contexts",
+      "offensive": "Applying techniques from one environment to a completely different target",
+      "defensive": "Recognizing that a novel attack shares the pattern of known TTPs, cross-domain correlation",
+      "operator_frame": "Applying training from one theater of operations to an entirely different one \u2014 the hallmark of elite operators who can improvise in novel situations"
+    },
+    {
+      "id": 9,
+      "name": "Rapid Threat Assessment & Intuition",
+      "brain_area": "Insular cortex",
+      "regions": [
+        "G_insular_short", "G_Ins_lg_and_S_cent_ins", "S_circular_insula_ant",
+        "S_circular_insula_inf", "S_circular_insula_sup"
+      ],
+      "neuroscience": "Interoception, risk evaluation, salience detection, time-pressure decision-making, emotional awareness",
+      "offensive": "Snap judgments about whether a target is honeypot or real, triaging opportunities",
+      "defensive": "Rapid incident triage, deciding escalation priority under extreme time pressure",
+      "operator_frame": "The split-second 'something's wrong' instinct that separates experts from novices \u2014 gut-level threat detection honed by experience"
+    },
+    {
+      "id": 10,
+      "name": "Deep Internalization & Reflective Processing",
+      "brain_area": "DMN core (posterior cingulate + precuneus)",
+      "regions": [
+        "G_cingul-Post-dorsal", "G_cingul-Post-ventral", "G_precuneus", "G_subcallosal"
+      ],
+      "neuroscience": "Self-referential processing, episodic memory retrieval, mental simulation, reflective thinking, rest-state consolidation, visuospatial imagery",
+      "offensive": "Internalizing techniques so deeply they become second nature, mental rehearsal of operations",
+      "defensive": "Post-incident reflection, lessons-learned integration, converting experience into lasting intuition",
+      "operator_frame": "The difference between knowing a procedure and truly owning it \u2014 converting classroom training into combat-ready instinct"
+    }
+  ]
+}
