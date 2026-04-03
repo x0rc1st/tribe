@@ -89,10 +89,12 @@ def create_app() -> FastAPI:
 
     # --- Routes ---
     from htb_brain.api.routes.predict import router as predict_router
+    from htb_brain.api.routes.predict_video import router as video_router
     from htb_brain.api.routes.health import router as health_router
     from htb_brain.api.routes.aggregate import router as aggregate_router
 
     app.include_router(predict_router)
+    app.include_router(video_router)
     app.include_router(health_router)
     app.include_router(aggregate_router)
 

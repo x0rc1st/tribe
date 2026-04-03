@@ -800,6 +800,12 @@
 
     async function submitPrediction() {
         const text = textInput.value.trim();
+        const isVideo = videoFile != null;
+
+        if (!text && !isVideo) {
+            showStatus('Enter text or upload a video.', 'error');
+            return;
+        }
 
         if (text.length > MAX_TEXT_KB * 1024) {
             showStatus(`Text too large. Maximum ${MAX_TEXT_KB}KB.`, 'error');
@@ -808,18 +814,32 @@
 
         submitBtn.disabled = true;
         loadingOverlay.classList.remove('hidden');
-        showStatus('Submitting prediction...', 'info');
 
         try {
-            const formData = new FormData();
-            if (text) formData.append('text', text);
-            if (videoFile) formData.append('video', videoFile);
+            let response;
 
-            // Submit job
-            const response = await fetch(API_URL, {
-                method: 'POST',
-                body: formData,
-            });
+            if (isVideo) {
+                // Video upload → /api/v1/predict/video
+                showStatus(`Uploading video (${(videoFile.size / 1024 / 1024).toFixed(1)} MB)...`, 'info');
+                const formData = new FormData();
+                formData.append('file', videoFile);
+                formData.append('content_type', 'video');
+
+                response = await fetch('/api/v1/predict/video', {
+                    method: 'POST',
+                    body: formData,
+                });
+            } else {
+                // Text → /api/v1/predict
+                showStatus('Submitting text prediction...', 'info');
+                const formData = new FormData();
+                formData.append('text', text);
+
+                response = await fetch(API_URL, {
+                    method: 'POST',
+                    body: formData,
+                });
+            }
 
             if (!response.ok) {
                 const errBody = await response.text();
