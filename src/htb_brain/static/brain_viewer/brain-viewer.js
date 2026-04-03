@@ -13,15 +13,18 @@ import { TooltipSystem } from './tooltip.js';
 const VERT_SHADER = `
 attribute float activation;
 attribute float highlight;
+attribute float groupIndex;
 
 varying float vActivation;
 varying float vHighlight;
+varying float vGroupIndex;
 varying vec3 vNormal;
 varying vec3 vViewPosition;
 
 void main() {
     vActivation = activation;
     vHighlight  = highlight;
+    vGroupIndex = groupIndex;
     vNormal = normalize(normalMatrix * normal);
 
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
@@ -36,41 +39,47 @@ precision highp float;
 
 varying float vActivation;
 varying float vHighlight;
+varying float vGroupIndex;
 varying vec3 vNormal;
 varying vec3 vViewPosition;
 
-const vec3 COLOR_CYAN   = vec3(0.180, 0.906, 0.714);
-const vec3 COLOR_GREEN  = vec3(0.624, 0.937, 0.0);
-const vec3 COLOR_BRIGHT = vec3(0.812, 1.0, 0.251);
-
 uniform float uTime;
+
+// 10 distinct group colors (neon palette)
+vec3 getGroupColor(float gid) {
+    int g = int(gid + 0.5);
+    if (g == 1)  return vec3(0.0, 0.75, 1.0);    // 1  Strategic Thinking — bright blue
+    if (g == 2)  return vec3(0.62, 0.94, 0.0);    // 2  Procedural Fluency — lime green
+    if (g == 3)  return vec3(1.0, 0.6, 0.0);      // 3  Technical Comprehension — orange
+    if (g == 4)  return vec3(0.85, 0.0, 1.0);     // 4  Pattern Recognition — purple
+    if (g == 5)  return vec3(1.0, 1.0, 0.0);      // 5  Situational Awareness — yellow
+    if (g == 6)  return vec3(1.0, 0.2, 0.3);      // 6  Adaptive Response — red
+    if (g == 7)  return vec3(0.0, 1.0, 0.6);      // 7  Memory Encoding — mint
+    if (g == 8)  return vec3(0.18, 0.91, 0.71);   // 8  Knowledge Synthesis — cyan
+    if (g == 9)  return vec3(1.0, 0.4, 0.7);      // 9  Rapid Assessment — pink
+    if (g == 10) return vec3(0.6, 0.8, 1.0);      // 10 Deep Internalization — ice blue
+    return vec3(0.3, 0.3, 0.3);                    // 0  unassigned — dim gray
+}
 
 void main() {
     float a = clamp(vActivation, 0.0, 1.0);
 
-    // Color ramp
-    vec3 color;
-    if (a <= 0.3) {
-        float t = a / 0.3;
-        color = COLOR_CYAN * t;
-    } else if (a <= 0.6) {
-        float t = (a - 0.3) / 0.3;
-        color = mix(COLOR_CYAN, COLOR_GREEN, t);
-    } else {
-        float t = (a - 0.6) / 0.4;
-        color = mix(COLOR_GREEN, COLOR_BRIGHT, t);
-    }
+    // Get group-specific base color
+    vec3 groupColor = getGroupColor(vGroupIndex);
 
-    // Fresnel rim glow
+    // Intensity ramp: dim at low activation, bright at high
+    vec3 color = groupColor * smoothstep(0.0, 0.5, a) * (0.6 + a * 0.4);
+
+    // Fresnel rim glow (uses group color)
     vec3 viewDir = normalize(vViewPosition);
     vec3 normal  = normalize(vNormal);
     float fresnel = 1.0 - abs(dot(viewDir, normal));
     fresnel = pow(fresnel, 2.5);
-    color += COLOR_CYAN * fresnel * 0.6 * a;
+    color += groupColor * fresnel * 0.4 * a;
 
     // Highlight pulse (hovered group)
     float pulse = 0.5 + 0.5 * sin(uTime * 6.0);
-    color += vec3(0.3, 0.5, 0.1) * vHighlight * pulse;
+    color += groupColor * 0.4 * vHighlight * pulse;
 
     // Alpha
     float alpha = a * (0.65 + fresnel * 0.35);
@@ -333,6 +342,17 @@ class BrainViewer extends HTMLElement {
             // Add highlight attribute
             this._highlightArray = new Float32Array(vertCount);
             geometry.setAttribute('highlight', new THREE.BufferAttribute(this._highlightArray, 1));
+
+            // Add groupIndex attribute from _GROUPINDEX (baked in GLB)
+            if (this._groupIndexAttr) {
+                const giArr = new Float32Array(vertCount);
+                for (let i = 0; i < Math.min(vertCount, this._groupIndexAttr.count); i++) {
+                    giArr[i] = this._groupIndexAttr.getX(i);
+                }
+                geometry.setAttribute('groupIndex', new THREE.BufferAttribute(giArr, 1));
+            } else {
+                geometry.setAttribute('groupIndex', new THREE.BufferAttribute(new Float32Array(vertCount), 1));
+            }
 
             const glowMat = new THREE.ShaderMaterial({
                 vertexShader: VERT_SHADER,
