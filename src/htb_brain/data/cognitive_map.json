@@ -45,7 +45,7 @@
     },
     {
       "id": 4,
-      "name": "Pattern Recognition & Anomaly Detection",
+      "name": "Visual Processing & Pattern Detection",
       "brain_area": "Occipital + ventral visual",
       "regions": [
         "G_cuneus", "G_occipital_sup", "G_occipital_middle", "G_and_S_occipital_inf",

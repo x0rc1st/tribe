@@ -52,7 +52,7 @@ vec3 getGroupColor(float gid) {
     if (g == 1)  return vec3(0.0, 0.75, 1.0);    // 1  Strategic Thinking — bright blue
     if (g == 2)  return vec3(0.62, 0.94, 0.0);    // 2  Procedural Fluency — lime green
     if (g == 3)  return vec3(1.0, 0.6, 0.0);      // 3  Technical Comprehension — orange
-    if (g == 4)  return vec3(0.85, 0.0, 1.0);     // 4  Pattern Recognition — purple
+    if (g == 4)  return vec3(0.85, 0.0, 1.0);     // 4  Visual Processing — purple
     if (g == 5)  return vec3(1.0, 1.0, 0.0);      // 5  Situational Awareness — yellow
     if (g == 6)  return vec3(1.0, 0.2, 0.3);      // 6  Adaptive Response — red
     if (g == 7)  return vec3(0.0, 1.0, 0.6);      // 7  Memory Encoding — mint
