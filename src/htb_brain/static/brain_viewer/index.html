@@ -786,41 +786,73 @@
 
         submitBtn.disabled = true;
         loadingOverlay.classList.remove('hidden');
-        showStatus('Sending prediction request...', 'info');
+        showStatus('Submitting prediction...', 'info');
 
         try {
             const formData = new FormData();
             if (text) formData.append('text', text);
             if (videoFile) formData.append('video', videoFile);
 
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 600000); // 10 min timeout
-
+            // Submit job
             const response = await fetch(API_URL, {
                 method: 'POST',
                 body: formData,
-                signal: controller.signal,
             });
-
-            clearTimeout(timeout);
 
             if (!response.ok) {
                 const errBody = await response.text();
                 throw new Error(`Server returned ${response.status}: ${errBody}`);
             }
 
-            const result = await response.json();
-            handlePredictionResult(result, text);
+            const data = await response.json();
+
+            // If result returned directly (cache hit), use it immediately
+            if (data.vertex_activations) {
+                handlePredictionResult(data, text);
+                return;
+            }
+
+            // Otherwise we got a job_id — poll for completion
+            if (data.job_id) {
+                showStatus(`Processing... (job ${data.job_id})`, 'info');
+                const result = await pollForResult(data.job_id);
+                handlePredictionResult(result, text);
+            } else {
+                throw new Error('Unexpected response from server');
+            }
 
         } catch (err) {
-            if (err.name === 'AbortError') {
-                showStatus('Request timed out. The first prediction is slow (~3 min) due to model warm-up. Try again.', 'error');
-            } else {
-                showStatus(`Error: ${err.message}`, 'error');
-            }
+            showStatus(`Error: ${err.message}`, 'error');
         } finally {
             loadingOverlay.classList.add('hidden');
             updateSubmitState();
+        }
+
+        // Poll for job completion
+        async function pollForResult(jobId) {
+            const POLL_INTERVAL = 3000; // 3 seconds
+            const MAX_POLLS = 200;      // 10 minutes max
+
+            for (let i = 0; i < MAX_POLLS; i++) {
+                await new Promise(r => setTimeout(r, POLL_INTERVAL));
+
+                const resp = await fetch(`/api/v1/jobs/${jobId}`);
+                if (!resp.ok) throw new Error(`Poll failed: ${resp.status}`);
+
+                const job = await resp.json();
+
+                if (job.status === 'complete') {
+                    return job;
+                }
+                if (job.status === 'failed') {
+                    throw new Error(job.error || 'Prediction failed');
+                }
+
+                // Update status with elapsed time
+                const elapsed = job.elapsed_seconds || (i * 3);
+                showStatus(`Processing... ${elapsed}s elapsed (first run is slow ~2-3 min)`, 'info');
+            }
+            throw new Error('Prediction timed out after 10 minutes');
         }
     }
 

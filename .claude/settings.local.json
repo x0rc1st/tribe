@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no zwxa85l5ghl5o7-64410d0c@ssh.runpod.io)"
+    ]
+  }
+}
