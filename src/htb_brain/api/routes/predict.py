@@ -8,9 +8,13 @@ import time
 import uuid
 from typing import Any
 
+import numpy as np
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from htb_brain.api.dependencies import get_predictor, get_atlas, get_translator
+from htb_brain.api.dependencies import (
+    get_predictor, get_atlas, get_translator,
+    get_subcortical_predictor, get_subcortical_atlas, get_subcortical_aggregator,
+)
 from htb_brain.api.schemas import PredictResponse, GroupScoreResponse
 from htb_brain.core.aggregator import Aggregator
 from htb_brain.core.atlas import BrainAtlas
@@ -32,6 +36,70 @@ def _text_hash(text: str) -> str:
     return hashlib.sha256(text.strip().encode()).hexdigest()[:16]
 
 
+# ── Subcortical helpers ──────────────────────────────────────────────────
+
+def _run_subcortical(text: str, sc_predictor, sc_atlas, sc_aggregator, mesh_meta_path: str | None):
+    """Run subcortical prediction and return enrichment data.
+
+    Returns dict with subcortical_vertex_activations, subcortical_regions,
+    subcortical_group_contributions, or None if subcortical is not available.
+    """
+    if sc_predictor is None:
+        return None
+
+    try:
+        sc_preds, _ = sc_predictor.predict_text(text)
+        sc_result = sc_aggregator.process_prediction(sc_preds)
+
+        # Map voxel activations to mesh vertices (for 3D rendering)
+        mesh_vertex_acts = None
+        if mesh_meta_path:
+            from htb_brain.visualization.subcortical_mesh_export import map_voxel_activations_to_mesh
+            mean_act = np.mean(sc_preds, axis=0).astype(np.float32)
+            # Normalize 0-1
+            vmin, vmax = mean_act.min(), mean_act.max()
+            if vmax - vmin > 0:
+                mean_act = (mean_act - vmin) / (vmax - vmin)
+            else:
+                mean_act = np.zeros_like(mean_act)
+            mesh_vertex_acts = map_voxel_activations_to_mesh(mean_act, mesh_meta_path)
+
+        return {
+            "regions": sc_result["regions"],
+            "region_zscores": sc_result["region_zscores"],
+            "engaged_regions": sc_result["engaged_regions"],
+            "group_scores": sc_result["group_scores"],
+            "mesh_vertex_activations": mesh_vertex_acts,
+        }
+    except Exception:
+        logger.exception("Subcortical prediction failed — returning cortical-only result")
+        return None
+
+
+def _merge_group_scores(cortical_groups: list, subcortical_group_scores: dict | None) -> list:
+    """Blend subcortical group contributions into cortical group scores."""
+    if not subcortical_group_scores:
+        return cortical_groups
+
+    # subcortical_group_scores: {group_id: z_score}
+    for gs in cortical_groups:
+        sc_contrib = subcortical_group_scores.get(gs["id"], 0.0)
+        if sc_contrib != 0.0:
+            # Weighted blend: 70% cortical + 30% subcortical
+            gs["score"] = gs["score"] * 0.7 + sc_contrib * 0.3
+            gs["z_score"] = gs["score"]
+
+    # Re-rank
+    cortical_groups.sort(key=lambda x: x["score"], reverse=True)
+    max_z = max(gs["score"] for gs in cortical_groups) if cortical_groups else 1.0
+    max_z = max(max_z, 0.01)
+    for i, gs in enumerate(cortical_groups):
+        gs["rank"] = i + 1
+        gs["engagement_pct"] = round(max(0.0, gs["score"] / max_z) * 100, 1)
+
+    return cortical_groups
+
+
 # ── Pipeline ─────────────────────────────────────────────────────────────
 
 def _run_pipeline(
@@ -40,28 +108,82 @@ def _run_pipeline(
     predictor: BrainPredictor,
     atlas: BrainAtlas,
     translator: Translator,
+    sc_predictor=None,
+    sc_atlas=None,
+    sc_aggregator=None,
+    mesh_meta_path: str | None = None,
 ) -> dict:
+    # Cortical prediction
     preds, _segments = predictor.predict_text(text)
     aggregator = Aggregator(atlas)
     result = aggregator.process_prediction(preds)
     group_scores = translator.translate(result["regions"], result["region_zscores"])
-    narrative = generate_summary(group_scores, content_type=content_type)
+    group_scores_dicts = [gs.to_dict() for gs in group_scores]
 
     # Build per-vertex group index array (20484 ints, 0-10)
     vertex_groups = _get_vertex_groups(atlas, translator)
 
+    # Cortical vertex activations
+    cortical_acts = result["vertex_activations"].tolist()
+
+    # Subcortical prediction (if available)
+    sc_data = _run_subcortical(text, sc_predictor, sc_atlas, sc_aggregator, mesh_meta_path)
+
+    subcortical_regions = []
+    n_subcortical = 0
+
+    if sc_data is not None:
+        # Merge subcortical group contributions into cortical group scores
+        group_scores_dicts = _merge_group_scores(group_scores_dicts, sc_data["group_scores"])
+
+        # Build subcortical region response
+        import json
+        from pathlib import Path
+        sc_map_path = Path(__file__).resolve().parent.parent.parent / "data" / "subcortical_cognitive_map.json"
+        with open(sc_map_path) as f:
+            sc_map = json.load(f)
+        region_to_groups = sc_map.get("region_to_groups", {})
+
+        for name, z in sc_data["region_zscores"].items():
+            subcortical_regions.append({
+                "name": name,
+                "z_score": z,
+                "group_ids": region_to_groups.get(name, []),
+                "engaged": name in sc_data["engaged_regions"],
+            })
+
+        # Append subcortical mesh vertex activations to cortical
+        if sc_data["mesh_vertex_activations"] is not None:
+            sc_mesh_acts = sc_data["mesh_vertex_activations"]
+            cortical_acts.extend(sc_mesh_acts.tolist())
+            n_subcortical = len(sc_mesh_acts)
+
+            # Extend vertex_groups with subcortical group indices
+            # (these come from the mesh metadata _GROUPINDEX baked into the GLB)
+            if mesh_meta_path:
+                import json as json2
+                with open(mesh_meta_path) as f:
+                    meta = json2.load(f)
+                for struct_name, info in meta.get("structures", {}).items():
+                    gid = info["group_ids"][0] if info.get("group_ids") else 0
+                    vertex_groups.extend([gid] * info["vertex_count"])
+
+    narrative = generate_summary(group_scores, content_type=content_type)
+
     return {
-        "vertex_activations": result["vertex_activations"].tolist(),
+        "vertex_activations": cortical_acts,
         "vertex_groups": vertex_groups,
-        "group_scores": [gs.to_dict() for gs in group_scores],
+        "group_scores": group_scores_dicts,
         "narrative_summary": narrative,
         "engaged_regions": result["engaged_regions"],
+        "subcortical_regions": subcortical_regions,
+        "n_cortical_vertices": 20484,
+        "n_subcortical_vertices": n_subcortical,
     }
 
 
 def _get_vertex_groups(atlas: BrainAtlas, translator: Translator) -> list[int]:
     """Map each of 20484 vertices to its capability group (0-10)."""
-    import numpy as np
     n = 20484
     n_left = 10242
     groups = [0] * n
@@ -86,7 +208,9 @@ def _get_vertex_groups(atlas: BrainAtlas, translator: Translator) -> list[int]:
 
 
 def _run_job(job_id: str, text: str, content_type: str,
-             predictor: BrainPredictor, atlas: BrainAtlas, translator: Translator):
+             predictor: BrainPredictor, atlas: BrainAtlas, translator: Translator,
+             sc_predictor=None, sc_atlas=None, sc_aggregator=None,
+             mesh_meta_path: str | None = None):
     """Run prediction in a background thread."""
     try:
         _jobs[job_id]["status"] = "running"
@@ -99,7 +223,10 @@ def _run_job(job_id: str, text: str, content_type: str,
             _jobs[job_id]["status"] = "complete"
             return
 
-        result = _run_pipeline(text, content_type, predictor, atlas, translator)
+        result = _run_pipeline(
+            text, content_type, predictor, atlas, translator,
+            sc_predictor, sc_atlas, sc_aggregator, mesh_meta_path,
+        )
 
         # Cache the result
         _result_cache[th] = result
@@ -122,6 +249,9 @@ async def predict(
     predictor: BrainPredictor = Depends(get_predictor),
     atlas: BrainAtlas = Depends(get_atlas),
     translator: Translator = Depends(get_translator),
+    sc_predictor=Depends(get_subcortical_predictor),
+    sc_atlas=Depends(get_subcortical_atlas),
+    sc_aggregator=Depends(get_subcortical_aggregator),
 ):
     """Submit a prediction job. Returns job_id for polling, or full result if cached."""
     ct = request.headers.get("content-type", "")
@@ -150,6 +280,10 @@ async def predict(
         logger.info("Cache hit, returning immediately")
         return _result_cache[th]
 
+    # Get mesh metadata path from settings
+    from htb_brain.config import settings
+    mesh_meta_path = settings.subcortical_mesh_meta or None
+
     # Create async job
     job_id = str(uuid.uuid4())[:8]
     _jobs[job_id] = {
@@ -163,7 +297,8 @@ async def predict(
     # Run in background thread (TRIBE v2 is CPU/GPU bound, not async)
     thread = threading.Thread(
         target=_run_job,
-        args=(job_id, input_text, content_type, predictor, atlas, translator),
+        args=(job_id, input_text, content_type, predictor, atlas, translator,
+              sc_predictor, sc_atlas, sc_aggregator, mesh_meta_path),
         daemon=True,
     )
     thread.start()

@@ -14,10 +14,12 @@ const VERT_SHADER = `
 attribute float activation;
 attribute float highlight;
 attribute float groupIndex;
+attribute float isSubcortical;
 
 varying float vActivation;
 varying float vHighlight;
 varying float vGroupIndex;
+varying float vIsSubcortical;
 varying vec3 vNormal;
 varying vec3 vViewPosition;
 
@@ -25,6 +27,7 @@ void main() {
     vActivation = activation;
     vHighlight  = highlight;
     vGroupIndex = groupIndex;
+    vIsSubcortical = isSubcortical;
     vNormal = normalize(normalMatrix * normal);
 
     vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
@@ -40,6 +43,7 @@ precision highp float;
 varying float vActivation;
 varying float vHighlight;
 varying float vGroupIndex;
+varying float vIsSubcortical;
 varying vec3 vNormal;
 varying vec3 vViewPosition;
 
@@ -54,43 +58,63 @@ vec3 getGroupColor(float gid) {
     if (g == 3)  return vec3(1.0, 0.6, 0.0);      // 3  Technical Comprehension — orange
     if (g == 4)  return vec3(0.85, 0.0, 1.0);     // 4  Visual Processing — purple
     if (g == 5)  return vec3(1.0, 1.0, 0.0);      // 5  Situational Awareness — yellow
-    if (g == 6)  return vec3(1.0, 0.2, 0.3);      // 6  Adaptive Response — red
+    if (g == 6)  return vec3(1.0, 0.2, 0.3);      // 6  Motivation & Adaptive Drive — red
     if (g == 7)  return vec3(0.0, 1.0, 0.6);      // 7  Memory Encoding — mint
     if (g == 8)  return vec3(0.18, 0.91, 0.71);   // 8  Knowledge Synthesis — cyan
-    if (g == 9)  return vec3(1.0, 0.4, 0.7);      // 9  Rapid Assessment — pink
+    if (g == 9)  return vec3(1.0, 0.4, 0.7);      // 9  Threat Awareness & Emotional Encoding — pink
     if (g == 10) return vec3(0.6, 0.8, 1.0);      // 10 Deep Internalization — ice blue
     return vec3(0.3, 0.3, 0.3);                    // 0  unassigned — dim gray
 }
 
 void main() {
     float raw = clamp(vActivation, 0.0, 1.0);
+    bool isSC = vIsSubcortical > 0.5;
 
     // Apply threshold: remap values above threshold to 0-1
-    float a = smoothstep(uThreshold, uThreshold + 0.15, raw);
+    // Subcortical structures: lower threshold (always more visible)
+    float thr = isSC ? uThreshold * 0.5 : uThreshold;
+    float a = smoothstep(thr, thr + 0.15, raw);
 
     // Get group-specific base color
     vec3 groupColor = getGroupColor(vGroupIndex);
 
-    // Intensity ramp: dim at low activation, bright at high
-    vec3 color = groupColor * smoothstep(0.0, 0.5, a) * (0.6 + a * 0.4);
+    // Subcortical: solid, bright glow. Cortical: diffuse surface glow.
+    vec3 color;
+    if (isSC) {
+        // Solid structure with strong color
+        color = groupColor * (0.4 + a * 0.6);
+        // Always show some base color even at zero activation
+        color = max(color, groupColor * 0.15);
+    } else {
+        // Original cortical: intensity ramp
+        color = groupColor * smoothstep(0.0, 0.5, a) * (0.6 + a * 0.4);
+    }
 
     // Fresnel rim glow (uses group color)
     vec3 viewDir = normalize(vViewPosition);
     vec3 normal  = normalize(vNormal);
     float fresnel = 1.0 - abs(dot(viewDir, normal));
     fresnel = pow(fresnel, 2.5);
-    color += groupColor * fresnel * 0.4 * a;
+    float fresnelStrength = isSC ? 0.6 : 0.4;
+    color += groupColor * fresnelStrength * a * fresnel;
 
     // Highlight pulse (hovered group)
     float pulse = 0.5 + 0.5 * sin(uTime * 6.0);
     color += groupColor * 0.4 * vHighlight * pulse;
 
-    // Alpha
-    float alpha = a * (0.65 + fresnel * 0.35);
-    alpha += vHighlight * 0.2;
+    // Alpha: subcortical is more opaque
+    float alpha;
+    if (isSC) {
+        alpha = 0.3 + a * 0.6;  // always partially visible
+        alpha += vHighlight * 0.15;
+    } else {
+        alpha = a * (0.65 + fresnel * 0.35);
+        alpha += vHighlight * 0.2;
+    }
 
     // Emissive boost for bloom
-    color *= 1.0 + a * 1.5;
+    float emissive = isSC ? 1.0 + a * 2.0 : 1.0 + a * 1.5;
+    color *= emissive;
 
     if (alpha < 0.005) discard;
 
@@ -98,7 +122,8 @@ void main() {
 }
 `;
 
-const VERTEX_COUNT = 20484;
+// Default cortical vertex count; updated dynamically when API returns n_cortical + n_subcortical
+let VERTEX_COUNT = 20484;
 
 class BrainViewer extends HTMLElement {
     constructor() {
@@ -142,7 +167,27 @@ class BrainViewer extends HTMLElement {
     // ---- Public API ----
 
     /**
-     * Set activation data (20484 floats, 0-1).
+     * Set the number of cortical vertices so the isSubcortical attribute
+     * can be computed correctly. Call before setActivations if subcortical
+     * vertices are present.
+     */
+    setCorticalVertexCount(n) {
+        this._nCortical = n;
+        if (this._glowMesh) {
+            const geom = this._glowMesh.geometry;
+            const attr = geom.getAttribute('isSubcortical');
+            if (attr) {
+                for (let i = 0; i < attr.count; i++) {
+                    attr.array[i] = (i >= n) ? 1.0 : 0.0;
+                }
+                attr.needsUpdate = true;
+            }
+        }
+    }
+
+    /**
+     * Set activation data (N floats, 0-1).
+     * First 20484 are cortical, remaining are subcortical mesh vertices.
      * Triggers smooth lerp transition from current to new values.
      */
     setActivations(float32Array) {
@@ -386,6 +431,15 @@ class BrainViewer extends HTMLElement {
             } else {
                 geometry.setAttribute('groupIndex', new THREE.BufferAttribute(new Float32Array(vertCount), 1));
             }
+
+            // Add isSubcortical attribute (0 = cortical, 1 = subcortical)
+            // Default: first 20484 vertices are cortical, rest are subcortical
+            const nCortical = this._nCortical || 20484;
+            const scArr = new Float32Array(vertCount);
+            for (let i = nCortical; i < vertCount; i++) {
+                scArr[i] = 1.0;
+            }
+            geometry.setAttribute('isSubcortical', new THREE.BufferAttribute(scArr, 1));
 
             const glowMat = new THREE.ShaderMaterial({
                 vertexShader: VERT_SHADER,

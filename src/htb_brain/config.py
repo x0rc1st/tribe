@@ -4,10 +4,14 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     model_config = {"env_prefix": "HTB_BRAIN_"}
 
-    # TRIBE v2
+    # TRIBE v2 (cortical)
     model_repo: str = "facebook/tribev2"
     model_cache_dir: str = "/workspace/tribe/cache"
     device: str = "auto"
+
+    # Subcortical model
+    subcortical_checkpoint_dir: str = ""  # set to enable subcortical predictions
+    subcortical_mesh_meta: str = ""       # path to combined mesh .json metadata
 
     # Aggregation
     threshold_percentile: float = 75.0

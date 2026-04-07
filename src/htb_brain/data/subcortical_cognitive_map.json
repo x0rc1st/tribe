@@ -1,0 +1,56 @@
+{
+  "description": "Maps subcortical structures (Harvard-Oxford atlas) to the 10 HTB capability groups. Each region is assigned to the group whose combined cortical+subcortical circuit best aligns with the structure's role in learning and cognition.",
+  "groups": [
+    {
+      "id": 1,
+      "name": "Strategic Thinking & Decision-Making",
+      "subcortical_regions": ["Caudate"],
+      "rationale": "The caudate nucleus drives goal-directed behavior and feedback-based learning — each outcome refines the next strategic choice through reward prediction error signals."
+    },
+    {
+      "id": 2,
+      "name": "Procedural Fluency & Muscle Memory",
+      "subcortical_regions": ["Putamen", "Pallidum"],
+      "rationale": "The putamen encodes procedural/habit learning and motor sequence automation. The pallidum gates motor output, selecting which learned routines to execute. Together they convert conscious practice into unconscious skill."
+    },
+    {
+      "id": 3,
+      "name": "Technical Comprehension & Language Processing",
+      "subcortical_regions": ["Thalamus"],
+      "rationale": "The thalamus (pulvinar and ventrolateral nuclei) relays and synchronizes cortico-thalamic language circuits, ensuring the right information reaches the right cortical area during complex comprehension."
+    },
+    {
+      "id": 5,
+      "name": "Situational Awareness & Focus",
+      "subcortical_regions": ["Thalamus"],
+      "rationale": "The thalamic reticular nucleus and pulvinar form the brain's attentional gateway — filtering, gating, and routing sensory information to sustain focus and maintain situational awareness."
+    },
+    {
+      "id": 6,
+      "name": "Motivation & Adaptive Drive",
+      "subcortical_regions": ["Accumbens"],
+      "rationale": "The nucleus accumbens is the brain's reward engine — its dopaminergic signals encode whether content is worth the effort, driving engagement, persistence, and the motivational state that sustains learning through difficulty."
+    },
+    {
+      "id": 7,
+      "name": "Memory Encoding & Knowledge Retention",
+      "subcortical_regions": ["Hippocampus"],
+      "rationale": "The hippocampus is the brain's memory writer — binding context, time, and content into durable episodic traces. High hippocampal engagement predicts content that will be retained long-term."
+    },
+    {
+      "id": 9,
+      "name": "Threat Awareness & Emotional Encoding",
+      "subcortical_regions": ["Amygdala"],
+      "rationale": "The amygdala tags experiences with emotional significance — fear, urgency, excitement — which dramatically enhances memory consolidation. Content that triggers this circuit is remembered far longer than emotionally neutral material."
+    }
+  ],
+  "region_to_groups": {
+    "Caudate": [1],
+    "Putamen": [2],
+    "Pallidum": [2],
+    "Thalamus": [3, 5],
+    "Hippocampus": [7],
+    "Amygdala": [9],
+    "Accumbens": [6]
+  }
+}

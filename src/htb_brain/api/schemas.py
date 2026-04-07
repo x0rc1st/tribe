@@ -36,15 +36,23 @@ class GroupScoreResponse(BaseModel):
     region_scores: dict[str, float]
 
 
+class SubcorticalRegionResponse(BaseModel):
+    """One subcortical structure in the prediction response."""
+    name: str
+    z_score: float
+    group_ids: list[int]
+    engaged: bool = False
+
+
 class PredictResponse(BaseModel):
     """Full response from the /api/v1/predict endpoint."""
     vertex_activations: list[float] = Field(
         ...,
-        description="20484 activation values normalised to 0-1 for the fsaverage5 surface",
+        description="Activation values normalised to 0-1. First 20484 are cortical (fsaverage5), remaining are subcortical mesh vertices (if subcortical model is loaded).",
     )
     group_scores: list[GroupScoreResponse] = Field(
         ...,
-        description="Capability-group scores sorted by rank",
+        description="Capability-group scores sorted by rank (includes subcortical contributions)",
     )
     narrative_summary: str = Field(
         ...,
@@ -53,6 +61,18 @@ class PredictResponse(BaseModel):
     engaged_regions: list[str] = Field(
         ...,
         description="Destrieux region names above the engagement threshold",
+    )
+    subcortical_regions: list[SubcorticalRegionResponse] = Field(
+        default_factory=list,
+        description="Subcortical structure activations (empty if subcortical model not loaded)",
+    )
+    n_cortical_vertices: int = Field(
+        default=20484,
+        description="Number of cortical vertices in vertex_activations",
+    )
+    n_subcortical_vertices: int = Field(
+        default=0,
+        description="Number of subcortical mesh vertices appended after cortical",
     )
 
 
@@ -65,3 +85,4 @@ class HealthResponse(BaseModel):
     gpu_name: str
     gpu_memory: str
     atlas_loaded: bool
+    subcortical_loaded: bool = False

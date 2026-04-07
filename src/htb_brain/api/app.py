@@ -58,6 +58,36 @@ async def lifespan(app: FastAPI):
     app.state.translator = translator
     logger.info("Translator ready.")
 
+    # --- Load Subcortical model (optional — requires trained checkpoint) ---
+    app.state.subcortical_predictor = None
+    app.state.subcortical_atlas = None
+    app.state.subcortical_aggregator = None
+
+    if settings.subcortical_checkpoint_dir:
+        try:
+            from htb_brain.core.subcortical_predictor import SubcorticalPredictor
+            from htb_brain.core.subcortical_atlas import SubcorticalAtlas
+            from htb_brain.core.subcortical_aggregator import SubcorticalAggregator
+
+            sc_predictor = SubcorticalPredictor(
+                checkpoint_dir=settings.subcortical_checkpoint_dir,
+                cache_dir=settings.model_cache_dir,
+                device=settings.device,
+            )
+            sc_predictor.load()
+            app.state.subcortical_predictor = sc_predictor
+
+            sc_atlas = SubcorticalAtlas()
+            sc_atlas.load()
+            app.state.subcortical_atlas = sc_atlas
+
+            sc_aggregator = SubcorticalAggregator(sc_atlas)
+            app.state.subcortical_aggregator = sc_aggregator
+
+            logger.info("Subcortical model ready (%d voxels).", sc_predictor.n_outputs)
+        except Exception:
+            logger.exception("Failed to load subcortical model — cortical-only mode.")
+
     yield  # Application runs
 
     # Cleanup (if needed in future)

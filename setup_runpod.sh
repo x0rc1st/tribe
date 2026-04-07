@@ -17,14 +17,15 @@ if [ -z "$HF_TOKEN" ] && [ -f /root/.cache/huggingface/token ]; then
 fi
 
 if [ -z "$HF_TOKEN" ]; then
-    echo "ERROR: No HuggingFace token. Pass as argument or write to /root/.cache/huggingface/token"
-    exit 1
+    echo "WARNING: No HuggingFace token. Cortical model may use lower rate limits."
 fi
 
 # Save token
-mkdir -p /root/.cache/huggingface
-echo "$HF_TOKEN" > /root/.cache/huggingface/token
-export HF_TOKEN="$HF_TOKEN"
+if [ -n "$HF_TOKEN" ]; then
+    mkdir -p /root/.cache/huggingface
+    echo "$HF_TOKEN" > /root/.cache/huggingface/token
+    export HF_TOKEN="$HF_TOKEN"
+fi
 
 # ---- 1. Clone tribev2 if not present ----
 if [ ! -d "/workspace/tribev2" ]; then
@@ -35,18 +36,17 @@ fi
 # ---- 2. Install tribev2 (relax torch constraint) ----
 echo ">>> Installing tribev2..."
 cd /workspace/tribev2
-sed -i 's/torch>=2.5.1,<2.7/torch>=2.5.1/' pyproject.toml 2>/dev/null || true
-pip install -e ".[plotting]" 2>&1 | tail -3
+sed -i 's/"torch>=2.5.1,<2.7"/"torch>=2.5.1"/g' pyproject.toml 2>/dev/null || true
+pip install -e ".[training,plotting]" 2>&1 | tail -3
 
 # ---- 3. Reinstall PyTorch 2.8 with CUDA 12.8 (for RTX 5090 / Blackwell) ----
 echo ">>> Installing PyTorch 2.8+cu128..."
-pip install torch==2.8.0+cu128 torchvision==0.23.0+cu128 torchaudio==2.8.0+cu128 \
-    --index-url https://download.pytorch.org/whl/cu128 2>&1 | tail -3
+pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorch.org/whl/cu128 2>&1 | tail -3
 
 # ---- 4. Install htb-brain dependencies ----
 echo ">>> Installing htb-brain deps..."
-pip install pydantic-settings fastapi uvicorn python-multipart httpx \
-    trimesh pygltflib scipy hf_transfer 2>&1 | tail -3
+pip install pydantic-settings fastapi "uvicorn[standard]" python-multipart httpx \
+    trimesh pygltflib scipy scikit-image hf_transfer 2>&1 | tail -3
 
 # ---- 5. Fix hf_transfer in uvx cache (for WhisperX) ----
 echo ">>> Fixing hf_transfer in uvx environments..."
@@ -56,14 +56,23 @@ for d in /workspace/.cache/uv/archive-v0/*/lib/python3.*/site-packages; do
     fi
 done
 
-# ---- 6. Generate brain mesh GLB if not present ----
+# ---- 6. Generate brain mesh GLBs if not present ----
+export PYTHONPATH=/workspace/tribe/src:/workspace/tribev2
+
 if [ ! -f "/workspace/tribe/src/htb_brain/static/brain_mesh.glb" ]; then
-    echo ">>> Generating brain mesh GLB..."
+    echo ">>> Generating cortical brain mesh GLB..."
     cd /workspace/tribe
-    PYTHONPATH=/workspace/tribe/src python3 src/htb_brain/visualization/mesh_export.py \
+    python3 src/htb_brain/visualization/mesh_export.py \
         /workspace/tribe/src/htb_brain/static/brain_mesh.glb
+fi
+
+if [ ! -f "/workspace/tribe/src/htb_brain/static/brain_mesh_combined.glb" ]; then
+    echo ">>> Generating combined cortical+subcortical mesh GLB..."
+    cd /workspace/tribe
+    python3 -m htb_brain.visualization.subcortical_mesh_export --combined \
+        /workspace/tribe/src/htb_brain/static/brain_mesh_combined.glb
 else
-    echo ">>> Brain mesh GLB already exists, skipping."
+    echo ">>> Combined mesh GLB already exists, skipping."
 fi
 
 # ---- 7. Verify ----
@@ -72,15 +81,17 @@ python3 -c "import torch; assert torch.cuda.is_available(), 'CUDA not available'
 python3 -c "from tribev2 import TribeModel; print('tribev2 OK')"
 python3 -c "import fastapi; print('fastapi OK')"
 python3 -c "import nilearn; print('nilearn OK')"
+python3 -c "import lightning; print('lightning OK')"
+
+# Check subcortical checkpoint
+if [ -f "/workspace/tribe/subcortical_training/results/best.ckpt" ]; then
+    echo "Subcortical checkpoint: FOUND"
+else
+    echo "Subcortical checkpoint: NOT FOUND (subcortical predictions disabled)"
+fi
 
 echo ""
 echo "=== Setup complete ==="
 echo ""
 echo "To start the server:"
-echo "  cd /workspace/tribe"
-echo "  export HF_TOKEN=$HF_TOKEN"
-echo "  export PYTHONPATH=/workspace/tribe/src"
-echo "  python3 -m uvicorn htb_brain.api.app:app --host 0.0.0.0 --port 8000"
-echo ""
-echo "Or use the start script:"
 echo "  bash /workspace/tribe/start.sh"

@@ -3,45 +3,48 @@
     {
       "id": 1,
       "name": "Strategic Thinking & Decision-Making",
-      "brain_area": "Prefrontal cortex",
+      "brain_area": "Prefrontal cortex + caudate nucleus",
       "regions": [
         "G_front_sup", "G_front_middle", "G_front_inf-Triangul", "G_front_inf-Orbital",
         "G_orbital", "G_rectus", "G_and_S_frontomargin", "G_and_S_transv_frontopol",
         "S_front_sup", "S_front_middle", "S_front_inf", "S_orbital_lateral",
         "S_orbital_med-olfact", "S_orbital-H_Shaped", "S_suborbital"
       ],
-      "neuroscience": "Executive function, working memory, planning, cognitive flexibility, value-based decisions, abstract reasoning, metacognition",
-      "offensive": "Formulating attack chains, sequencing exploitation phases, planning lateral movement",
-      "defensive": "Designing defense-in-depth strategies, incident response planning, threat modeling",
-      "operator_frame": "The mission command center \u2014 like a general planning operations or a surgeon sequencing a complex procedure"
+      "subcortical_regions": ["Caudate"],
+      "neuroscience": "Executive function, working memory, planning, cognitive flexibility, value-based decisions, abstract reasoning, metacognition. The caudate nucleus provides feedback-based learning signals that refine strategic choices through reward prediction",
+      "offensive": "Formulating attack chains, sequencing exploitation phases, planning lateral movement, learning from failed attempts to refine strategy",
+      "defensive": "Designing defense-in-depth strategies, incident response planning, threat modeling, iteratively improving detection rules based on outcomes",
+      "operator_frame": "The mission command center \u2014 like a general planning operations or a surgeon sequencing a complex procedure. The caudate adds the learning loop: each operation refines the next plan"
     },
     {
       "id": 2,
       "name": "Procedural Fluency & Muscle Memory",
-      "brain_area": "Sensorimotor strip",
+      "brain_area": "Sensorimotor strip + putamen + pallidum",
       "regions": [
         "G_precentral", "G_postcentral", "G_and_S_paracentral", "G_and_S_subcentral",
         "S_central", "S_precentral-inf-part", "S_precentral-sup-part", "S_postcentral"
       ],
-      "neuroscience": "Motor planning, procedural memory, action sequencing, sensorimotor integration, fine/gross motor control",
-      "offensive": "Operationalizing exploit techniques into repeatable workflows, command-line fluency",
-      "defensive": "Rapid firewall rule deployment, scripted response procedures, forensic tool chains",
-      "operator_frame": "Knowledge translated into automatic action \u2014 like a pilot's stick-and-throttle instincts or a surgeon's trained hands"
+      "subcortical_regions": ["Putamen", "Pallidum"],
+      "neuroscience": "Motor planning, procedural memory, action sequencing, sensorimotor integration. The putamen drives habit formation and procedural skill automation; the pallidum gates motor output, selecting which learned routines to execute",
+      "offensive": "Operationalizing exploit techniques into repeatable workflows, command-line fluency, automating enumeration patterns into muscle memory",
+      "defensive": "Rapid firewall rule deployment, scripted response procedures, forensic tool chains, building incident response into automatic action",
+      "operator_frame": "Knowledge translated into automatic action \u2014 like a pilot's stick-and-throttle instincts. The basal ganglia are why practice makes permanent: they convert conscious effort into unconscious skill"
     },
     {
       "id": 3,
       "name": "Technical Comprehension & Language Processing",
-      "brain_area": "Perisylvian language network",
+      "brain_area": "Perisylvian language network + thalamus",
       "regions": [
         "G_front_inf-Opercular", "G_temp_sup-Lateral", "G_temp_sup-Plan_tempo",
         "G_temp_sup-Plan_polar", "G_temp_sup-G_T_transv", "G_temporal_middle",
         "S_temporal_sup", "S_temporal_transverse", "Lat_Fis-ant-Horizont",
         "Lat_Fis-ant-Vertical", "Lat_Fis-post"
       ],
-      "neuroscience": "Syntax parsing, semantic understanding, speech comprehension, reading, complex sequence processing, auditory processing",
+      "subcortical_regions": ["Thalamus"],
+      "neuroscience": "Syntax parsing, semantic understanding, speech comprehension, reading, complex sequence processing, auditory processing. The thalamus (pulvinar and ventrolateral nuclei) relays and synchronizes cortico-thalamic language circuits critical for comprehension",
       "offensive": "Parsing CVE descriptions, understanding exploit code, processing protocol specifications",
       "defensive": "Reading threat intel advisories, understanding SIEM alert logic, interpreting log syntax",
-      "operator_frame": "Decoding complex technical briefings under pressure \u2014 like a pilot parsing rapid ATC instructions"
+      "operator_frame": "Decoding complex technical briefings under pressure \u2014 like a pilot parsing rapid ATC instructions. The thalamus ensures the right information reaches the right cortical area at the right time"
     },
     {
       "id": 4,
@@ -54,6 +57,7 @@
         "S_oc_sup_and_transversal", "S_oc-temp_lat", "S_oc-temp_med_and_Lingual",
         "S_temporal_inf", "S_parieto_occipital"
       ],
+      "subcortical_regions": [],
       "neuroscience": "Visual feature detection, expert pattern recognition, anomaly detection, color/form processing, visual memory, face/object recognition",
       "offensive": "Spotting misconfigurations in scan output, recognizing vulnerable patterns in code",
       "defensive": "Detecting anomalies in log streams, recognizing attack signatures, PCAP analysis",
@@ -62,39 +66,42 @@
     {
       "id": 5,
       "name": "Situational Awareness & Focus",
-      "brain_area": "Dorsal parietal",
+      "brain_area": "Dorsal parietal + thalamus (reticular/pulvinar)",
       "regions": [
         "G_parietal_sup", "S_intrapariet_and_P_trans", "S_subparietal"
       ],
-      "neuroscience": "Spatial reasoning, sustained/directed attention, numerical cognition, mental model maintenance",
+      "subcortical_regions": ["Thalamus"],
+      "neuroscience": "Spatial reasoning, sustained/directed attention, numerical cognition, mental model maintenance. The thalamic reticular nucleus and pulvinar act as the brain's attentional gateway, filtering and gating sensory information to maintain focus",
       "offensive": "Maintaining awareness of the full attack surface, tracking pivoted sessions and credentials",
       "defensive": "Monitoring network topology, tracking incident scope, correlating multi-source alerts",
-      "operator_frame": "Maintaining the big picture while executing the details \u2014 the pilot's instrument scan pattern that keeps everything in view"
+      "operator_frame": "Maintaining the big picture while executing the details \u2014 the pilot's instrument scan pattern that keeps everything in view. The thalamus decides what gets through to conscious awareness"
     },
     {
       "id": 6,
-      "name": "Adaptive Response & Error Recovery",
-      "brain_area": "Anterior/mid cingulate",
+      "name": "Motivation & Adaptive Drive",
+      "brain_area": "Anterior/mid cingulate + nucleus accumbens",
       "regions": [
         "G_and_S_cingul-Ant", "G_and_S_cingul-Mid-Ant", "G_and_S_cingul-Mid-Post",
         "S_cingul-Marginalis", "S_pericallosal"
       ],
-      "neuroscience": "Error detection, conflict monitoring, strategy switching, cognitive control, motivation, pain/frustration processing",
-      "offensive": "Recognizing when an exploit path fails, pivoting to alternative vectors mid-operation",
-      "defensive": "Distinguishing false positives from real threats, adjusting detection rules on the fly",
-      "operator_frame": "A surgeon recognizing complications and adapting the procedure in real-time \u2014 sharp reflexes in the cognitive domain"
+      "subcortical_regions": ["Accumbens"],
+      "neuroscience": "Error detection, conflict monitoring, strategy switching, cognitive control, dopaminergic reward prediction, motivational drive. The nucleus accumbens provides the reward signal that makes learning feel worthwhile \u2014 the neural basis of engagement and persistence through difficulty",
+      "offensive": "The drive to keep enumerating when initial vectors fail, the dopamine hit of finding the foothold, staying motivated through long engagements",
+      "defensive": "Persisting through tedious log analysis, the satisfaction of catching a real threat in noise, maintaining vigilance during monotonous monitoring",
+      "operator_frame": "The engine that keeps you going when it gets hard \u2014 why gamified labs and CTF challenges sustain focus where textbooks fail. This circuit answers: is this content worth my effort?"
     },
     {
       "id": 7,
       "name": "Memory Encoding & Knowledge Retention",
-      "brain_area": "Medial temporal",
+      "brain_area": "Medial temporal + hippocampus",
       "regions": [
         "G_oc-temp_med-Parahip", "Pole_temporal", "S_collat_transv_ant", "S_collat_transv_post"
       ],
-      "neuroscience": "Episodic memory encoding, contextual/scene memory, spatial navigation memory, semantic memory",
-      "offensive": "Encoding new exploitation techniques, building mental maps of target environments",
-      "defensive": "Retaining indicator patterns, building mental models of attacker behavior over time",
-      "operator_frame": "The difference between cramming for an exam and actually retaining field knowledge \u2014 building the expertise that sticks"
+      "subcortical_regions": ["Hippocampus"],
+      "neuroscience": "Episodic memory encoding, contextual/scene memory, spatial navigation memory, semantic memory. The hippocampus is the brain's memory writer \u2014 binding context, location, and content into durable episodic traces that form the foundation of expertise",
+      "offensive": "Encoding new exploitation techniques, building mental maps of target environments, remembering which techniques worked in which contexts",
+      "defensive": "Retaining indicator patterns, building mental models of attacker behavior over time, recalling past incidents to recognize recurring TTPs",
+      "operator_frame": "The difference between cramming for an exam and actually retaining field knowledge \u2014 building the expertise that sticks. High hippocampal engagement predicts content that will be remembered"
     },
     {
       "id": 8,
@@ -103,6 +110,7 @@
       "regions": [
         "G_pariet_inf-Angular", "G_pariet_inf-Supramar", "S_interm_prim-Jensen"
       ],
+      "subcortical_regions": [],
       "neuroscience": "Analogical reasoning, cross-modal integration, mathematical reasoning, phonological processing, applying abstract principles to new contexts",
       "offensive": "Applying techniques from one environment to a completely different target",
       "defensive": "Recognizing that a novel attack shares the pattern of known TTPs, cross-domain correlation",
@@ -110,16 +118,17 @@
     },
     {
       "id": 9,
-      "name": "Rapid Threat Assessment & Intuition",
-      "brain_area": "Insular cortex",
+      "name": "Threat Awareness & Emotional Encoding",
+      "brain_area": "Insular cortex + amygdala",
       "regions": [
         "G_insular_short", "G_Ins_lg_and_S_cent_ins", "S_circular_insula_ant",
         "S_circular_insula_inf", "S_circular_insula_sup"
       ],
-      "neuroscience": "Interoception, risk evaluation, salience detection, time-pressure decision-making, emotional awareness",
-      "offensive": "Snap judgments about whether a target is honeypot or real, triaging opportunities",
-      "defensive": "Rapid incident triage, deciding escalation priority under extreme time pressure",
-      "operator_frame": "The split-second 'something's wrong' instinct that separates experts from novices \u2014 gut-level threat detection honed by experience"
+      "subcortical_regions": ["Amygdala"],
+      "neuroscience": "Interoception, risk evaluation, salience detection, time-pressure decision-making, emotional awareness. The amygdala marks experiences with emotional significance \u2014 fear, urgency, excitement \u2014 which dramatically enhances memory consolidation. Content that triggers this circuit is remembered far longer",
+      "offensive": "The adrenaline of finding a vulnerability that makes the technique unforgettable, snap judgments about whether a target is honeypot or real, triaging opportunities under pressure",
+      "defensive": "Rapid incident triage, the gut-level alarm when something looks wrong, emotional weight of a real breach driving permanent lesson retention",
+      "operator_frame": "The split-second 'something's wrong' instinct that separates experts from novices. The amygdala is why you never forget the first time you popped a shell \u2014 emotional intensity cements learning"
     },
     {
       "id": 10,
@@ -128,6 +137,7 @@
       "regions": [
         "G_cingul-Post-dorsal", "G_cingul-Post-ventral", "G_precuneus", "G_subcallosal"
       ],
+      "subcortical_regions": [],
       "neuroscience": "Self-referential processing, episodic memory retrieval, mental simulation, reflective thinking, rest-state consolidation, visuospatial imagery",
       "offensive": "Internalizing techniques so deeply they become second nature, mental rehearsal of operations",
       "defensive": "Post-incident reflection, lessons-learned integration, converting experience into lasting intuition",

@@ -901,19 +901,32 @@
     // ---- Handle API result ----
     function handlePredictionResult(result, inputText) {
         // API returns: vertex_activations, group_scores, narrative_summary, engaged_regions
+        // Plus subcortical: subcortical_regions, n_cortical_vertices, n_subcortical_vertices
         const activations = result.vertex_activations || result.activations;
         const groups = result.group_scores || result.groups;
         const summary = result.narrative_summary || result.summary;
+        const nCortical = result.n_cortical_vertices || 20484;
+        const nSubcortical = result.n_subcortical_vertices || 0;
+        const subcorticalRegions = result.subcortical_regions || [];
+
+        // Choose the right mesh: combined if subcortical data is present
+        const meshFile = nSubcortical > 0
+            ? '/static/brain_mesh_combined.glb'
+            : '/static/brain_mesh.glb';
 
         // Auto-create viewer if it doesn't exist yet
         if (!viewer) {
-            createViewer('/static/brain_mesh.glb');
+            createViewer(meshFile);
         }
 
         const vertexGroups = result.vertex_groups;
 
         if (viewer) {
             const applyData = () => {
+                // Set cortical count before activations so isSubcortical is computed
+                if (nSubcortical > 0) {
+                    viewer.setCorticalVertexCount(nCortical);
+                }
                 if (vertexGroups) viewer.setGroupIndices(vertexGroups);
                 if (activations) viewer.setActivations(new Float32Array(activations));
             };
@@ -930,15 +943,41 @@
             renderRadarChart(groups);
         }
 
+        // Render subcortical region list if present
+        if (subcorticalRegions.length > 0) {
+            renderSubcorticalRegions(subcorticalRegions);
+        }
+
         if (summary) {
             renderSummary(summary);
         }
 
-        showStatus('Prediction complete.', 'info');
+        const statusMsg = nSubcortical > 0
+            ? `Prediction complete. Cortical: ${nCortical} vertices + Subcortical: ${nSubcortical} vertices (${subcorticalRegions.length} structures)`
+            : 'Prediction complete.';
+        showStatus(statusMsg, 'info');
         inputSection.classList.add('collapsed');
 
         // Save to history
         savePrediction(inputText, result);
+    }
+
+    function renderSubcorticalRegions(regions) {
+        if (!regions || regions.length === 0) return;
+        const sorted = [...regions].sort((a, b) => b.z_score - a.z_score);
+        const html = sorted.map(r => {
+            const engaged = r.engaged ? 'Strong' : (r.z_score > 0 ? 'Moderate' : 'Low');
+            const color = r.engaged ? '#9FEF00' : '#4a5568';
+            return `<li class="region-item">
+                <span class="region-dot" style="background:${color}"></span>
+                <span class="region-name">${r.name}</span>
+                <span class="region-score" title="z=${r.z_score.toFixed(2)}">${engaged}</span>
+            </li>`;
+        }).join('');
+
+        // Append subcortical section to region list
+        const list = document.getElementById('regionList');
+        list.innerHTML += `<li style="margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;">Subcortical Structures</li>` + html;
     }
 
     // ---- Demo data ----

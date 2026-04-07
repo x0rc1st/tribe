@@ -36,9 +36,14 @@ async def health(request: Request):
     except Exception:
         logger.debug("Could not query GPU info", exc_info=True)
 
+    # Subcortical loaded?
+    sc_predictor = getattr(request.app.state, "subcortical_predictor", None)
+    subcortical_loaded = sc_predictor is not None and sc_predictor.model is not None
+
     return HealthResponse(
         model_loaded=model_loaded,
         gpu_name=gpu_name,
         gpu_memory=gpu_memory,
         atlas_loaded=atlas_loaded,
+        subcortical_loaded=subcortical_loaded,
     )

@@ -20,3 +20,18 @@ def get_atlas(request: Request) -> BrainAtlas:
 def get_translator(request: Request) -> Translator:
     """Return the loaded Translator from app state."""
     return request.app.state.translator
+
+
+def get_subcortical_predictor(request: Request):
+    """Return the SubcorticalPredictor if loaded, else None."""
+    return getattr(request.app.state, "subcortical_predictor", None)
+
+
+def get_subcortical_atlas(request: Request):
+    """Return the SubcorticalAtlas if loaded, else None."""
+    return getattr(request.app.state, "subcortical_atlas", None)
+
+
+def get_subcortical_aggregator(request: Request):
+    """Return the SubcorticalAggregator if loaded, else None."""
+    return getattr(request.app.state, "subcortical_aggregator", None)
