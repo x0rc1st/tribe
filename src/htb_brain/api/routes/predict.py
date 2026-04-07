@@ -38,7 +38,7 @@ def _text_hash(text: str) -> str:
 
 # ── Subcortical helpers ──────────────────────────────────────────────────
 
-def _run_subcortical(text: str, sc_predictor, sc_atlas, sc_aggregator, mesh_meta_path: str | None):
+def _run_subcortical(text: str, sc_predictor, sc_atlas, sc_aggregator, mesh_meta_path: str | None, cortical_model=None):
     """Run subcortical prediction and return enrichment data.
 
     Returns dict with subcortical_vertex_activations, subcortical_regions,
@@ -48,7 +48,7 @@ def _run_subcortical(text: str, sc_predictor, sc_atlas, sc_aggregator, mesh_meta
         return None
 
     try:
-        sc_preds, _ = sc_predictor.predict_text(text)
+        sc_preds, _ = sc_predictor.predict_text(text, cortical_model=cortical_model)
         sc_result = sc_aggregator.process_prediction(sc_preds)
 
         # Map voxel activations to mesh vertices (for 3D rendering)
@@ -127,7 +127,9 @@ def _run_pipeline(
     cortical_acts = result["vertex_activations"].tolist()
 
     # Subcortical prediction (if available)
-    sc_data = _run_subcortical(text, sc_predictor, sc_atlas, sc_aggregator, mesh_meta_path)
+    # Pass cortical predictor's model so subcortical doesn't re-load it
+    cortical_tribe_model = getattr(predictor, 'model', None)
+    sc_data = _run_subcortical(text, sc_predictor, sc_atlas, sc_aggregator, mesh_meta_path, cortical_model=cortical_tribe_model)
 
     subcortical_regions = []
     n_subcortical = 0

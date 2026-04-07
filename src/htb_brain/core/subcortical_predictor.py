@@ -99,51 +99,58 @@ class SubcorticalPredictor:
             self.n_outputs, device,
         )
 
-    def predict_text(self, text: str) -> tuple[np.ndarray, list]:
-        """Predict subcortical activations from text.
-
-        Uses the cortical TribeModel for event processing, then runs
-        the subcortical model on the same features.
-        """
-        assert self._raw_model is not None, "Model not loaded. Call load() first."
-
-        from tribev2 import TribeModel
+    def _run_with_cortical(self, cortical_model, events_df) -> tuple[np.ndarray, list]:
+        """Run subcortical model using cortical model's data pipeline."""
         import torch
         from einops import rearrange
         from tqdm import tqdm
 
-        cortical = TribeModel.from_pretrained(
-            "facebook/tribev2", cache_folder=self.cache_dir, device=self.device
-        )
+        loader = cortical_model.data.get_loaders(events=events_df, split_to_build="all")["all"]
+
+        preds, all_segments = [], []
+        with torch.inference_mode():
+            for batch in tqdm(loader, desc="Subcortical"):
+                batch = batch.to(next(self._raw_model.parameters()).device)
+                batch_segments = []
+                for segment in batch.segments:
+                    for t in np.arange(0, segment.duration - 1e-2, cortical_model.data.TR):
+                        batch_segments.append(segment.copy(offset=t, duration=cortical_model.data.TR))
+
+                keep = np.array([len(s.ns_events) > 0 for s in batch_segments])
+                batch_segments = [s for i, s in enumerate(batch_segments) if keep[i]]
+
+                y_pred = self._raw_model(batch).detach().cpu().numpy()
+                y_pred = rearrange(y_pred, "b d t -> (b t) d")[keep]
+                preds.append(y_pred)
+                all_segments.extend(batch_segments)
+
+        preds = np.concatenate(preds)
+        logger.info("Subcortical prediction shape: %s", preds.shape)
+        return preds, all_segments
+
+    def predict_text(self, text: str, cortical_model=None) -> tuple[np.ndarray, list]:
+        """Predict subcortical activations from text.
+
+        Args:
+            text: input text
+            cortical_model: optional pre-loaded TribeModel to reuse for event processing.
+                           If None, loads a new one (slow on first call).
+        """
+        assert self._raw_model is not None, "Model not loaded. Call load() first."
+
+        if cortical_model is None:
+            from tribev2 import TribeModel
+            cortical_model = TribeModel.from_pretrained(
+                "facebook/tribev2", cache_folder=self.cache_dir, device=self.device
+            )
 
         tmp_path = Path(self.cache_dir) / "tmp_subcort_input.txt"
         tmp_path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path.write_text(text, encoding="utf-8")
 
         try:
-            df = cortical.get_events_dataframe(text_path=str(tmp_path))
-            loader = cortical.data.get_loaders(events=df, split_to_build="all")["all"]
-
-            preds, all_segments = [], []
-            with torch.inference_mode():
-                for batch in tqdm(loader, desc="Subcortical"):
-                    batch = batch.to(next(self._raw_model.parameters()).device)
-                    batch_segments = []
-                    for segment in batch.segments:
-                        for t in np.arange(0, segment.duration - 1e-2, cortical.data.TR):
-                            batch_segments.append(segment.copy(offset=t, duration=cortical.data.TR))
-
-                    keep = np.array([len(s.ns_events) > 0 for s in batch_segments])
-                    batch_segments = [s for i, s in enumerate(batch_segments) if keep[i]]
-
-                    y_pred = self._raw_model(batch).detach().cpu().numpy()
-                    y_pred = rearrange(y_pred, "b d t -> (b t) d")[keep]
-                    preds.append(y_pred)
-                    all_segments.extend(batch_segments)
-
-            preds = np.concatenate(preds)
-            logger.info("Subcortical prediction shape: %s", preds.shape)
-            return preds, all_segments
+            df = cortical_model.get_events_dataframe(text_path=str(tmp_path))
+            return self._run_with_cortical(cortical_model, df)
         finally:
             tmp_path.unlink(missing_ok=True)
 

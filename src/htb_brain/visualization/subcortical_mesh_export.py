@@ -342,11 +342,22 @@ def map_voxel_activations_to_mesh(
     with open(meta_path) as f:
         meta = json.load(f)
 
-    total_vertices = sum(info["vertex_count"] for info in meta.values())
+    # Handle both standalone and combined mesh metadata formats
+    structures = meta.get("structures", meta)
+    if not isinstance(structures, dict):
+        structures = meta
+
+    total_vertices = sum(info["vertex_count"] for info in structures.values() if isinstance(info, dict))
     vertex_acts = np.zeros(total_vertices, dtype=np.float32)
 
-    for structure_name, info in meta.items():
-        start = info["vertex_start"]
+    # In combined mesh metadata, vertex_start includes cortical offset
+    # Subtract it so indices are relative to the subcortical-only array
+    cortical_offset = meta.get("n_cortical_vertices", 0)
+
+    for structure_name, info in structures.items():
+        if not isinstance(info, dict):
+            continue
+        start = info["vertex_start"] - cortical_offset
         count = info["vertex_count"]
         voxel_map = np.array(info["voxel_to_vertex_map"])
 
@@ -354,7 +365,8 @@ def map_voxel_activations_to_mesh(
         voxel_map = np.clip(voxel_map, 0, len(voxel_activations) - 1)
 
         # Transfer voxel activations to mesh vertices
-        vertex_acts[start:start + count] = voxel_activations[voxel_map]
+        if start >= 0 and start + count <= len(vertex_acts):
+            vertex_acts[start:start + count] = voxel_activations[voxel_map]
 
     return vertex_acts
 
