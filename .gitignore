@@ -8,7 +8,9 @@ build/
 .pytest_cache/
 cache/
 *.glb
+*.ckpt
 server.log
 *.log
 .DS_Store
 node_modules/
+subcortical_training/
