@@ -1,0 +1,73 @@
+TRIBE v2 Subcortical Integration — Next Steps
+================================================
+
+Current State (April 2026)
+--------------------------
+- Cortical: 20,484 vertices, facebook/tribev2 pretrained (r~0.5+)
+- Subcortical: 8,808 voxels, trained on Wen2017 subject1 (r=0.12, top-1=55%)
+- 7 structures: Thalamus, Caudate, Putamen, Pallidum, Hippocampus, Amygdala, Accumbens
+- Combined glass brain viewer with solid subcortical structures
+- 10 capability groups with cortical+subcortical blend (70/30)
+
+Known Limitations
+-----------------
+1. Subcortical model trained on VIDEO-ONLY data (Wen2017) but used for TEXT.
+   Works because pretrained backbone learned cross-modal representations,
+   but text-specific subcortical accuracy would improve with audio/speech data.
+
+2. Pearson r=0.12 is real signal but modest. Cortical model gets r~0.5+.
+   Subcortical fMRI is inherently noisier (susceptibility artifacts in
+   amygdala/hippocampus, smaller structure volumes, lower SNR).
+
+3. The 70/30 cortical/subcortical blend weight is a heuristic, not
+   empirically validated. Should be tuned on held-out data.
+
+4. Single subject training — cross-subject generalization would improve
+   with more subjects.
+
+Priority Next Steps
+-------------------
+
+1. TRAIN ON LEBEL2023BOLD (highest impact)
+   - Audio/speech fMRI dataset (8 subjects, spoken narratives)
+   - OpenNeuro ds003020
+   - Subcortical text predictions would jump because hippocampus and
+     amygdala are heavily engaged during narrative listening
+   - Requires fmriprep preprocessing (several hours per subject)
+   - Would directly improve text → subcortical accuracy
+
+2. ADD REMAINING WEN2017 SUBJECTS
+   - Subject2 partially available (training segments OK, some test segments missing)
+   - Subject3 needs 150GB network volume (currently 100GB)
+   - 3x more training data = better cross-subject generalization
+   - Disk: resize network volume to 150GB, then run scripts/run_all_subjects.sh
+
+3. VALIDATE AGAINST LEARNING OUTCOMES
+   - Does high hippocampal engagement actually predict retention in HTB labs?
+   - Does amygdala activation correlate with which modules operators remember?
+   - Does accumbens (motivation) predict completion rates?
+   - This is the gold standard: predictive validity, not just face validity
+
+4. TUNE THE BLEND WEIGHT
+   - Current 70/30 cortical/subcortical is a heuristic
+   - Collect predictions on a set of known-engagement content
+   - Optimize the blend ratio to maximize correlation with actual engagement metrics
+   - May vary per group (hippocampus contribution to Group 7 should be higher than 30%)
+
+5. ADD LAHNER2024BOLD (BOLD Moments)
+   - 10 subjects watching short video clips
+   - OpenNeuro ds005165 + stimuli from boldmomentsdataset.csail.mit.edu
+   - Different stimulus type = more diverse subcortical representations
+   - fmriprep derivatives included — less preprocessing work than Lebel
+
+6. IMPROVE SUBCORTICAL VISUALIZATION
+   - Currently subcortical structures render as solid shapes inside glass brain
+   - Add per-structure tooltips with z-scores on hover
+   - Add subcortical section to the radar chart
+   - Animate subcortical activation transitions (currently only cortical lerps)
+
+7. CEREBELLUM
+   - Harvard-Oxford atlas excludes cerebellum
+   - Diedrichsen cerebellar atlas needed (not yet implemented in tribev2)
+   - Cerebellum is critical for procedural learning (Group 2) and error prediction
+   - Would strengthen the Procedural Fluency group significantly
