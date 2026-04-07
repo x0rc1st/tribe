@@ -63,14 +63,23 @@ async def lifespan(app: FastAPI):
     app.state.subcortical_atlas = None
     app.state.subcortical_aggregator = None
 
-    if settings.subcortical_checkpoint_dir:
+    # Auto-detect subcortical checkpoint
+    sc_ckpt_dir = settings.subcortical_checkpoint_dir
+    if not sc_ckpt_dir:
+        from pathlib import Path as _P
+        _default = _P("/workspace/tribe/subcortical_training/results/best.ckpt")
+        if _default.exists():
+            sc_ckpt_dir = str(_default.parent)
+            logger.info("Auto-detected subcortical checkpoint: %s", sc_ckpt_dir)
+
+    if sc_ckpt_dir:
         try:
             from htb_brain.core.subcortical_predictor import SubcorticalPredictor
             from htb_brain.core.subcortical_atlas import SubcorticalAtlas
             from htb_brain.core.subcortical_aggregator import SubcorticalAggregator
 
             sc_predictor = SubcorticalPredictor(
-                checkpoint_dir=settings.subcortical_checkpoint_dir,
+                checkpoint_dir=sc_ckpt_dir,
                 cache_dir=settings.model_cache_dir,
                 device=settings.device,
             )

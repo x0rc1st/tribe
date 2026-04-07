@@ -38,7 +38,7 @@ async def health(request: Request):
 
     # Subcortical loaded?
     sc_predictor = getattr(request.app.state, "subcortical_predictor", None)
-    subcortical_loaded = sc_predictor is not None and sc_predictor.model is not None
+    subcortical_loaded = sc_predictor is not None and getattr(sc_predictor, "_raw_model", None) is not None
 
     return HealthResponse(
         model_loaded=model_loaded,
