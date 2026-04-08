@@ -4,23 +4,68 @@ Maps TRIBE v2 brain engagement predictions (10 cortical groups + 7 subcortical
 structures) to 6 operator readiness dimensions, each grounded in established
 neuroscience and Rasmussen's SRK framework.
 
-Detection is driven purely by prediction outputs — no modality awareness.
+Readiness is computed as accumulated signal strength with diminishing returns,
+following the power law of practice (Newell & Rosenbloom 1981). Each module's
+engagement adds signal; readiness saturates asymptotically toward 1.0.
 
 See docs/operator_readiness_profile.md for the full design document.
 """
 
 from __future__ import annotations
 
+import math
+
 # ---------------------------------------------------------------------------
 # Thresholds
 # ---------------------------------------------------------------------------
 
 STRONG = 1.0
-MODERATE = 0.2   # z > 0.2 ≈ 58th percentile — above-average engagement
+MODERATE = 0.2   # z > 0.2 ~ 58th percentile — above-average engagement
 BASELINE = -0.3
 
 # ---------------------------------------------------------------------------
-# Dimension detection
+# Readiness accumulation
+# ---------------------------------------------------------------------------
+
+TAU = 2.5  # saturation rate — controls how quickly readiness builds
+
+READINESS_LEVELS = [
+    (0.70, "ready"),       # sustained strong engagement
+    (0.40, "proficient"),  # solid multi-module engagement
+    (0.15, "developing"),  # some engagement, building up
+    (0.00, "untrained"),   # little to no engagement
+]
+
+GAP_THRESHOLD = 0.15  # readiness below this = gap
+
+
+def compute_readiness(strengths: list[float]) -> float:
+    """Compute readiness from accumulated per-module strength values.
+
+    Uses exponential saturation: readiness = 1 - exp(-raw_signal / tau).
+    Each module contributes max(0, strength) — only positive engagement
+    counts. Diminishing returns model neural pathway consolidation.
+
+    At tau=2.5:
+      1 strong module (z=1.0)  → 33% readiness (developing)
+      3 strong modules         → 70% readiness (ready)
+      5 strong modules         → 86% readiness (ready)
+      Weak modules (z=0.2)     → need ~5 to reach developing
+    """
+    raw_signal = sum(max(0.0, s) for s in strengths)
+    return 1.0 - math.exp(-raw_signal / TAU)
+
+
+def readiness_level(readiness: float) -> str:
+    """Map a readiness score to a human-readable level."""
+    for threshold, level in READINESS_LEVELS:
+        if readiness >= threshold:
+            return level
+    return "untrained"
+
+
+# ---------------------------------------------------------------------------
+# Dimension detection (per-module)
 # ---------------------------------------------------------------------------
 
 
@@ -28,10 +73,11 @@ def detect_dimensions(
     group_scores: dict[int, float],
     subcortical: dict[str, dict],
 ) -> dict[str, dict]:
-    """Detect which operator readiness dimensions a piece of content covers.
+    """Detect which operator readiness dimensions a piece of content engages.
 
-    Pure prediction-driven: takes TRIBE outputs, returns dimension coverage.
-    No modality awareness — the model's predictions are the signal.
+    Pure prediction-driven: takes TRIBE outputs, returns per-dimension signal.
+    The `strength` field reflects the best available signal for how strongly
+    this module engaged each dimension's neural circuits.
 
     Args:
         group_scores: {group_id: z_score} for groups 1-10.
@@ -39,8 +85,7 @@ def detect_dimensions(
 
     Returns:
         {dimension_key: {
-            "covered": bool,
-            "strength": float,
+            "strength": float,  -- best signal for this dimension
             "srk_mode": str,
             "details": dict,
         }}
@@ -51,7 +96,7 @@ def detect_dimensions(
     dimensions: dict[str, dict] = {}
 
     # Subcortical direct paths: when a deep brain structure fires at z >= 1.0,
-    # it independently triggers the dimension. The structure IS the circuit.
+    # it independently contributes strong signal. The structure IS the circuit.
     def _sc_strong(name: str) -> bool:
         s = sc.get(name, {})
         return s.get("engaged", False) and s.get("z_score", -1) >= STRONG
@@ -63,13 +108,13 @@ def detect_dimensions(
     hippo_z = sc.get("Hippocampus", {}).get("z_score", 0.0)
 
     # 1. Procedural Automaticity (Skill-based)
-    g2_ok = g.get(2, -1) >= MODERATE
+    g2_val = g.get(2, -1.0)
+    g2_ok = g2_val >= MODERATE
     dimensions["procedural_automaticity"] = {
-        "covered": g2_ok or putamen_or_pallidum,
-        "strength": g.get(2, 0.0),
+        "strength": g2_val,
         "srk_mode": "skill-based",
         "details": {
-            "cortical_motor": g.get(2, 0.0),
+            "cortical_motor": g2_val,
             "putamen": sc.get("Putamen", {}).get("z_score", 0.0),
             "pallidum": sc.get("Pallidum", {}).get("z_score", 0.0),
             "subcortical_confirmed": putamen_or_pallidum,
@@ -77,13 +122,14 @@ def detect_dimensions(
     }
 
     # 2. Threat Detection & Calibration (Cross-mode)
-    g9_ok = g.get(9, -1) >= MODERATE
+    g9_val = g.get(9, -1.0)
+    g9_ok = g9_val >= MODERATE
+    threat_strength = max(g9_val, amygdala_z) if amygdala_strong else g9_val
     dimensions["threat_detection"] = {
-        "covered": g9_ok or amygdala_strong,
-        "strength": max(g.get(9, 0.0), amygdala_z) if amygdala_strong else g.get(9, 0.0),
+        "strength": threat_strength,
         "srk_mode": "cross-mode",
         "details": {
-            "cortical_threat": g.get(9, 0.0),
+            "cortical_threat": g9_val,
             "amygdala": amygdala_z,
             "amygdala_direct": amygdala_strong,
             "motivation": g.get(6, 0.0),
@@ -91,12 +137,12 @@ def detect_dimensions(
     }
 
     # 3. Situational Awareness (Rule + Knowledge)
-    # Primary: G5 (attention) >= MODERATE with G3 and G8 at baseline.
-    # Alt: G5 at baseline + BOTH G3 and G8 >= MODERATE — strong comprehension
-    # and integration compensate for modest attentional gating signal.
-    g5_val = g.get(5, -1)
-    g3_val = g.get(3, -1)
-    g8_val = g.get(8, -1)
+    # Strength reflects all contributing signals, not just the anchor.
+    # When comprehension + integration compensate for modest attention,
+    # the SA signal is the mean of all three circuits.
+    g5_val = g.get(5, -1.0)
+    g3_val = g.get(3, -1.0)
+    g8_val = g.get(8, -1.0)
     g5_ok = g5_val >= MODERATE
     g3_baseline = g3_val >= BASELINE
     g8_baseline = g8_val >= BASELINE
@@ -105,9 +151,14 @@ def detect_dimensions(
     g5_baseline = g5_val >= BASELINE
     sa_primary = g5_ok and g3_baseline and g8_baseline
     sa_compensated = g5_baseline and g3_mod and g8_mod
+
+    if sa_compensated and not sa_primary:
+        sa_strength = (g5_val + g3_val + g8_val) / 3.0
+    else:
+        sa_strength = g5_val
+
     dimensions["situational_awareness"] = {
-        "covered": sa_primary or sa_compensated,
-        "strength": g5_val,
+        "strength": sa_strength,
         "srk_mode": "rule-based",
         "details": {
             "attention_focus": g5_val,
@@ -119,30 +170,30 @@ def detect_dimensions(
     }
 
     # 4. Strategic Decision-Making & Reflection (Knowledge-based)
-    g1_ok = g.get(1, -1) >= MODERATE
-    g10_ok = g.get(10, -1) >= BASELINE
+    g1_val = g.get(1, -1.0)
+    g10_val = g.get(10, -1.0)
     dimensions["strategic_decision"] = {
-        "covered": g1_ok and g10_ok,
-        "strength": g.get(1, 0.0),
+        "strength": g1_val,
         "srk_mode": "knowledge-based",
         "details": {
-            "executive_function": g.get(1, 0.0),
-            "reflection": g.get(10, 0.0),
+            "executive_function": g1_val,
+            "reflection": g10_val,
             "caudate_feedback": sc.get("Caudate", {}).get("z_score", 0.0),
         },
     }
 
     # 5. Analytical Synthesis & Pattern Matching (Knowledge + Rule)
-    g8_ok = g.get(8, -1) >= MODERATE
-    g7_ok = g.get(7, -1) >= BASELINE
-    is_adaptive = (g8_ok or hippo_strong) and g.get(1, -1) >= MODERATE
+    g8_ok = g8_val >= MODERATE
+    g7_val = g.get(7, -1.0)
+    g7_ok = g7_val >= BASELINE
+    synthesis_strength = max(g8_val, hippo_z) if hippo_strong else g8_val
+    is_adaptive = (g8_ok or hippo_strong) and g1_val >= MODERATE
     dimensions["analytical_synthesis"] = {
-        "covered": (g8_ok and g7_ok) or (hippo_strong and g7_ok),
-        "strength": max(g.get(8, 0.0), hippo_z) if hippo_strong else g.get(8, 0.0),
+        "strength": synthesis_strength,
         "srk_mode": "knowledge-based" if is_adaptive else "rule-based",
         "details": {
-            "synthesis": g.get(8, 0.0),
-            "memory_encoding": g.get(7, 0.0),
+            "synthesis": g8_val,
+            "memory_encoding": g7_val,
             "hippocampus": hippo_z,
             "hippocampus_direct": hippo_strong,
             "adaptive": is_adaptive,
@@ -150,23 +201,20 @@ def detect_dimensions(
     }
 
     # 6. Stress Resilience (All modes under degradation)
-    cognitive_ok = (
-        g.get(1, -1) >= MODERATE
-        or g.get(5, -1) >= MODERATE
-        or g.get(8, -1) >= MODERATE
-    )
-    threat_ok = g.get(9, -1) >= MODERATE or amygdala_strong
-    cognitive_peak = max(g.get(1, -1), g.get(5, -1), g.get(8, -1))
-    threat_peak = max(g.get(9, -1), amygdala_z) if amygdala_strong else g.get(9, -1)
+    cognitive_ok = (g1_val >= MODERATE or g5_val >= MODERATE or g8_val >= MODERATE)
+    threat_ok = g9_val >= MODERATE or amygdala_strong
+    cognitive_peak = max(g1_val, g5_val, g8_val)
+    threat_peak = max(g9_val, amygdala_z) if amygdala_strong else g9_val
+    co_active = cognitive_ok and threat_ok
+    stress_strength = min(cognitive_peak, threat_peak) if co_active else min(cognitive_peak, threat_peak)
     dimensions["stress_resilience"] = {
-        "covered": cognitive_ok and threat_ok,
-        "strength": min(cognitive_peak, threat_peak),
+        "strength": stress_strength,
         "srk_mode": "all-modes-degraded",
         "details": {
             "cognitive_peak": cognitive_peak,
-            "threat_activation": g.get(9, 0.0),
+            "threat_activation": g9_val,
             "amygdala_direct": amygdala_strong,
-            "co_activation": cognitive_ok and threat_ok,
+            "co_activation": co_active,
         },
     }
 
@@ -276,41 +324,38 @@ _GAP_CONFIG: dict[str, dict] = {
 }
 
 # ---------------------------------------------------------------------------
-# Gap detection
+# Gap detection (readiness-based)
 # ---------------------------------------------------------------------------
 
 
 def detect_gaps(
-    dimension_coverage: dict[str, float],
+    dimension_readiness: dict[str, float],
 ) -> list[dict]:
     """Detect gaps in an operator's readiness profile.
 
     Args:
-        dimension_coverage: {dimension_key: coverage_float_0_to_1}
-            from the accumulated operator profile.
+        dimension_readiness: {dimension_key: readiness_0_to_1}
 
     Returns:
         List of DimensionGap dicts, respecting DEPENDENCY_ORDER.
     """
-    COVERAGE_THRESHOLD = 0.3  # below this = gap
-
     gaps: list[dict] = []
 
     for dim_key, config in _GAP_CONFIG.items():
-        coverage = dimension_coverage.get(dim_key, 0.0)
-        if coverage >= COVERAGE_THRESHOLD:
+        rdns = dimension_readiness.get(dim_key, 0.0)
+        if rdns >= GAP_THRESHOLD:
             continue
 
         # Check which prerequisite dimensions are also gaps (blocked_by)
         blocked_by: list[str] = []
         for prereq in DEPENDENCY_ORDER.get(dim_key, []):
-            prereq_coverage = dimension_coverage.get(prereq, 0.0)
-            if prereq_coverage < COVERAGE_THRESHOLD:
+            if dimension_readiness.get(prereq, 0.0) < GAP_THRESHOLD:
                 blocked_by.append(prereq)
 
         gaps.append({
             "dimension": dim_key,
-            "current_coverage": round(coverage, 3),
+            "readiness": round(rdns, 3),
+            "level": readiness_level(rdns),
             "severity": config["severity"],
             "srk_error_risk": config["srk_error_risk"],
             "blocked_by": blocked_by,
@@ -318,7 +363,7 @@ def detect_gaps(
             "message": config["message"],
         })
 
-    # Sort: unblocked gaps first, then by severity (critical > moderate)
+    # Sort: unblocked first, then by severity
     severity_rank = {"critical": 0, "moderate": 1, "minor": 2}
     gaps.sort(key=lambda g: (len(g["blocked_by"]) > 0, severity_rank.get(g["severity"], 9)))
 
@@ -334,22 +379,12 @@ def extract_readiness_inputs(
     group_scores_list: list[dict],
     subcortical_regions: list[dict],
 ) -> tuple[dict[int, float], dict[str, dict]]:
-    """Convert API response format into detect_dimensions() input format.
-
-    Args:
-        group_scores_list: List of GroupScoreResponse dicts from predict.
-        subcortical_regions: List of SubcorticalRegionResponse dicts.
-
-    Returns:
-        (group_scores_dict, subcortical_dict) ready for detect_dimensions().
-    """
+    """Convert API response format into detect_dimensions() input format."""
     group_scores = {gs["id"]: gs["z_score"] for gs in group_scores_list}
-
     subcortical = {}
     for sr in subcortical_regions:
         subcortical[sr["name"]] = {
             "z_score": sr["z_score"],
             "engaged": sr.get("engaged", False),
         }
-
     return group_scores, subcortical

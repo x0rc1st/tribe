@@ -133,16 +133,16 @@ function drawRadar(canvas, dimensions) {
     }
 
     // Coverage polygon
-    const coverageValues = DIM_ORDER.map(k => {
+    const readinessValues = DIM_ORDER.map(k => {
         const d = dimensions[k];
-        return d ? d.coverage : 0;
+        return d ? d.readiness : 0;
     });
 
     ctx.beginPath();
     for (let i = 0; i <= n; i++) {
         const idx = i % n;
         const a = startAngle + idx * angleStep;
-        const v = Math.min(coverageValues[idx], 1.0);
+        const v = Math.min(readinessValues[idx], 1.0);
         const r = v * R;
         const x = cx + r * Math.cos(a);
         const y = cy + r * Math.sin(a);
@@ -157,13 +157,13 @@ function drawRadar(canvas, dimensions) {
     // Dots at vertices
     for (let i = 0; i < n; i++) {
         const a = startAngle + i * angleStep;
-        const v = Math.min(coverageValues[i], 1.0);
+        const v = Math.min(readinessValues[i], 1.0);
         const r = v * R;
         const x = cx + r * Math.cos(a);
         const y = cy + r * Math.sin(a);
         ctx.beginPath();
         ctx.arc(x, y, 4, 0, 2 * Math.PI);
-        ctx.fillStyle = v >= 0.3 ? COLORS.neonGreen : COLORS.danger;
+        ctx.fillStyle = v >= 0.15 ? COLORS.neonGreen : COLORS.danger;
         ctx.fill();
     }
 
@@ -171,40 +171,48 @@ function drawRadar(canvas, dimensions) {
     ctx.font = "bold 11px 'JetBrains Mono', monospace";
     for (let i = 0; i < n; i++) {
         const a = startAngle + i * angleStep;
-        const v = Math.min(coverageValues[i], 1.0);
+        const v = Math.min(readinessValues[i], 1.0);
         const r = v * R + 16;
         const x = cx + r * Math.cos(a);
         const y = cy + r * Math.sin(a);
-        ctx.fillStyle = v >= 0.3 ? COLORS.neonGreen : COLORS.danger;
+        ctx.fillStyle = v >= 0.15 ? COLORS.neonGreen : COLORS.danger;
         ctx.fillText(Math.round(v * 100) + "%", x, y);
     }
 }
 
 // ── Dimension summary list ───────────────────────────────────────
 
+const LEVEL_COLORS = {
+    "ready": COLORS.neonGreen,
+    "proficient": COLORS.cyan,
+    "developing": COLORS.warning,
+    "untrained": COLORS.danger,
+};
+
 function renderDimensions(container, dimensions) {
     container.innerHTML = "";
     DIM_ORDER.forEach(key => {
         const d = dimensions[key];
         if (!d) return;
-        const covered = d.coverage >= 0.3;
-        const pct = Math.round(d.coverage * 100);
-        const barColor = covered ? COLORS.neonGreen : COLORS.danger;
+        const pct = Math.round(d.readiness * 100);
+        const level = d.level || "untrained";
+        const color = LEVEL_COLORS[level] || COLORS.danger;
+        const isGap = d.readiness < 0.15;
 
         const el = document.createElement("div");
-        el.className = `dim-item ${covered ? "covered" : "not-covered"}`;
+        el.className = `dim-item ${isGap ? "not-covered" : "covered"}`;
         el.innerHTML = `
             <div class="dim-header">
                 <span class="dim-name">${DIM_FULL_NAMES[key]}</span>
-                <span class="dim-badge ${covered ? "covered" : "not-covered"}">${covered ? "Covered" : "Gap"}</span>
+                <span class="dim-badge ${isGap ? "not-covered" : "covered"}" style="background:${color}22;color:${color}">${level.toUpperCase()}</span>
             </div>
             <div class="dim-meta">
-                <span>Coverage: ${pct}%</span>
-                <span>Modules: ${d.module_count}</span>
-                <span>Strength: ${d.mean_strength.toFixed(2)}</span>
+                <span>Readiness: ${pct}%</span>
+                <span>Signal: ${d.raw_signal.toFixed(2)}</span>
+                <span>Avg: ${d.mean_strength.toFixed(2)}</span>
             </div>
             <div class="dim-bar-track">
-                <div class="dim-bar-fill" style="width:${pct}%; background:${barColor}"></div>
+                <div class="dim-bar-fill" style="width:${pct}%; background:${color}"></div>
             </div>
         `;
         container.appendChild(el);
@@ -240,7 +248,7 @@ function renderGaps(container, gapsData) {
                 <span class="gap-severity ${gap.severity}">${gap.severity}</span>
                 <span class="gap-dim-name">${DIM_FULL_NAMES[gap.dimension] || gap.dimension}</span>
                 <span style="margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--text-muted)">
-                    ${Math.round(gap.current_coverage * 100)}% coverage
+                    ${Math.round(gap.readiness * 100)}% readiness
                 </span>
             </div>
             <div class="gap-error-risk">SRK Risk: ${gap.srk_error_risk}</div>
@@ -301,7 +309,7 @@ function drawDependencies(canvas, dimensions) {
             ctx.lineTo(tx, ty);
 
             const dim = dimensions[target];
-            const covered = dim && dim.coverage >= 0.3;
+            const covered = dim && dim.readiness >= 0.15;
             ctx.strokeStyle = covered ? "rgba(159,239,0,0.3)" : "rgba(255,107,107,0.3)";
             ctx.stroke();
 
@@ -323,8 +331,8 @@ function drawDependencies(canvas, dimensions) {
     ctx.textBaseline = "middle";
     for (const [key, pos] of Object.entries(positions)) {
         const dim = dimensions[key];
-        const coverage = dim ? dim.coverage : 0;
-        const covered = coverage >= 0.3;
+        const readiness = dim ? dim.readiness : 0;
+        const covered = readiness >= 0.15;
 
         // Node box
         ctx.fillStyle = covered ? "rgba(159,239,0,0.08)" : "rgba(255,107,107,0.06)";
@@ -343,7 +351,7 @@ function drawDependencies(canvas, dimensions) {
         // Coverage
         ctx.font = "10px 'JetBrains Mono', monospace";
         ctx.fillStyle = COLORS.gridLabel;
-        ctx.fillText(Math.round(coverage * 100) + "% coverage", pos.x + nodeW / 2, pos.y + nodeH / 2 + 10);
+        ctx.fillText(Math.round(readiness * 100) + "% readiness", pos.x + nodeW / 2, pos.y + nodeH / 2 + 10);
         ctx.font = "bold 11px 'JetBrains Mono', monospace";
     }
 }
@@ -374,8 +382,9 @@ function renderModules(container, modules) {
 
         const badgesHtml = DIM_ORDER.map(key => {
             const d = mod.dimensions[key];
-            const covered = d && d.covered;
-            return `<span class="module-badge ${covered ? "covered" : "not-covered"}">${DIM_SHORT[key]}</span>`;
+            const str = d ? d.strength : 0;
+            const engaged = str > 0;
+            return `<span class="module-badge ${engaged ? "covered" : "not-covered"}" title="str=${str.toFixed(2)}">${DIM_SHORT[key]}</span>`;
         }).join("");
 
         el.innerHTML = `

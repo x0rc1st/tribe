@@ -13,6 +13,8 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
+from htb_brain.core.operator_readiness import compute_readiness, readiness_level
+
 logger = logging.getLogger(__name__)
 
 _DEFAULT_DB = Path("/workspace/tribe/data/operator_profiles.db")
@@ -129,11 +131,9 @@ class ProfileStore:
             (operator_id,),
         ).fetchall()
 
-        # Build completed_modules list and accumulate per-dimension stats
+        # Build completed_modules list and accumulate per-dimension strengths
         completed_modules: list[dict] = []
         dim_strengths: dict[str, list[float]] = {k: [] for k in DIMENSION_KEYS}
-        dim_covered_count: dict[str, int] = {k: 0 for k in DIMENSION_KEYS}
-        dim_last_engaged: dict[str, str] = {k: "" for k in DIMENSION_KEYS}
 
         for row in rows:
             dims = json.loads(row["dimensions"])
@@ -149,25 +149,24 @@ class ProfileStore:
 
             for dim_key in DIMENSION_KEYS:
                 dim_data = dims.get(dim_key, {})
-                if dim_data.get("covered", False):
-                    dim_covered_count[dim_key] += 1
-                    dim_last_engaged[dim_key] = row["predicted_at"]
                 dim_strengths[dim_key].append(dim_data.get("strength", 0.0))
 
         total_modules = len(completed_modules)
 
-        # Build dimension scores
+        # Build dimension scores using accumulated readiness
         dimension_scores: dict[str, dict] = {}
         for dim_key in DIMENSION_KEYS:
             strengths = dim_strengths[dim_key]
-            covered = dim_covered_count[dim_key]
+            rdns = compute_readiness(strengths) if strengths else 0.0
+            raw_signal = sum(max(0.0, s) for s in strengths)
             dimension_scores[dim_key] = {
-                "coverage": round(covered / total_modules, 3) if total_modules > 0 else 0.0,
+                "readiness": round(rdns, 3),
+                "level": readiness_level(rdns),
+                "raw_signal": round(raw_signal, 3),
                 "mean_strength": round(
                     sum(strengths) / len(strengths), 3
                 ) if strengths else 0.0,
-                "module_count": covered,
-                "last_engaged": dim_last_engaged[dim_key] or None,
+                "module_contributions": len([s for s in strengths if s > 0]),
             }
 
         return {
@@ -177,11 +176,11 @@ class ProfileStore:
             "total_modules": total_modules,
         }
 
-    def get_dimension_coverage(self, operator_id: str) -> dict[str, float]:
-        """Get just the coverage values for gap detection."""
+    def get_dimension_readiness(self, operator_id: str) -> dict[str, float]:
+        """Get just the readiness values for gap detection."""
         profile = self.get_profile(operator_id)
         return {
-            dim_key: dim_data["coverage"]
+            dim_key: dim_data["readiness"]
             for dim_key, dim_data in profile["dimensions"].items()
         }
 

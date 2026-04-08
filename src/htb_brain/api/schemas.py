@@ -52,7 +52,6 @@ class DimensionResponse(BaseModel):
     """One operator readiness dimension in the prediction response."""
     key: str
     name: str
-    covered: bool
     strength: float
     srk_mode: str
     details: dict

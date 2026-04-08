@@ -125,17 +125,17 @@ async def get_gaps(operator_id: str, request: Request):
             detail=f"No modules recorded for operator '{operator_id}'",
         )
 
-    coverage = {
-        dim_key: dim_data["coverage"]
+    rdns = {
+        dim_key: dim_data["readiness"]
         for dim_key, dim_data in profile["dimensions"].items()
     }
 
-    gaps = detect_gaps(coverage)
+    gaps = detect_gaps(rdns)
 
     return {
         "operator_id": operator_id,
         "total_modules": profile["total_modules"],
-        "dimension_coverage": coverage,
+        "dimension_readiness": rdns,
         "gaps": gaps,
         "all_clear": len(gaps) == 0,
     }
