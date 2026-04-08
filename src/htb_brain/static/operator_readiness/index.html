@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRIBE v2 - Operator Readiness Profile</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="readiness.css">
+</head>
+<body>
+
+<div class="app">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-logo">TRIBE<span>v2</span></div>
+        <div class="header-sub">Operator Readiness Profile</div>
+        <div class="header-spacer"></div>
+        <a href="/static/brain_viewer/index.html" class="header-link">Brain Viewer</a>
+    </header>
+
+    <!-- Operator selector -->
+    <section class="controls">
+        <div class="control-group">
+            <label class="control-label">Operator ID</label>
+            <div class="control-row">
+                <input type="text" id="operatorId" class="control-input" placeholder="e.g. analyst-001" />
+                <button id="loadBtn" class="btn btn-primary">Load Profile</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Empty state -->
+    <section id="emptyState" class="empty-state">
+        <div class="empty-icon">&#9670;</div>
+        <p>Enter an operator ID to view their readiness profile.</p>
+        <p class="empty-sub">Record modules via <code>POST /api/v1/profile/{'{operator_id}'}/modules</code></p>
+    </section>
+
+    <!-- Main content (hidden until loaded) -->
+    <main id="mainContent" class="main-content" style="display:none">
+
+        <!-- Radar chart + summary -->
+        <div class="profile-grid">
+            <div class="card radar-card">
+                <h2 class="card-title">Readiness Radar</h2>
+                <canvas id="radarCanvas" width="460" height="460"></canvas>
+            </div>
+
+            <div class="card summary-card">
+                <h2 class="card-title">Dimension Summary</h2>
+                <div id="dimensionList" class="dimension-list"></div>
+            </div>
+        </div>
+
+        <!-- Gap analysis -->
+        <div class="card gaps-card">
+            <h2 class="card-title">Gap Analysis &amp; SRK Error Risk</h2>
+            <div id="gapsContainer"></div>
+        </div>
+
+        <!-- Dependency graph -->
+        <div class="card deps-card">
+            <h2 class="card-title">Dimension Dependencies</h2>
+            <canvas id="depsCanvas" width="700" height="280"></canvas>
+        </div>
+
+        <!-- Module history -->
+        <div class="card modules-card">
+            <h2 class="card-title">Completed Modules</h2>
+            <div id="modulesList" class="modules-list"></div>
+        </div>
+
+    </main>
+</div>
+
+<script src="readiness.js"></script>
+</body>
+</html>

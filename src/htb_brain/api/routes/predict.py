@@ -20,6 +20,7 @@ from htb_brain.core.aggregator import Aggregator
 from htb_brain.core.atlas import BrainAtlas
 from htb_brain.core.predictor import BrainPredictor
 from htb_brain.core.translator import Translator
+from htb_brain.core.operator_readiness import detect_dimensions, extract_readiness_inputs
 from htb_brain.visualization.summary import generate_summary
 
 logger = logging.getLogger(__name__)
@@ -202,6 +203,26 @@ def _run_pipeline(
 
     narrative = generate_summary(group_scores, content_type=content_type)
 
+    # --- Operator Readiness Dimensions ---
+    gs_dict, sc_dict = extract_readiness_inputs(group_scores_dicts, subcortical_regions)
+    raw_dims = detect_dimensions(gs_dict, sc_dict)
+
+    _DIM_NAMES = {
+        "procedural_automaticity": "Procedural Automaticity",
+        "threat_detection": "Threat Detection & Calibration",
+        "situational_awareness": "Situational Awareness",
+        "strategic_decision": "Strategic Decision & Reflection",
+        "analytical_synthesis": "Analytical Synthesis & Pattern Matching",
+        "stress_resilience": "Stress Resilience",
+    }
+    operator_readiness = {}
+    for dim_key, dim_data in raw_dims.items():
+        operator_readiness[dim_key] = {
+            "key": dim_key,
+            "name": _DIM_NAMES[dim_key],
+            **dim_data,
+        }
+
     return {
         "vertex_activations": cortical_acts,
         "vertex_groups": vertex_groups,
@@ -211,6 +232,7 @@ def _run_pipeline(
         "subcortical_regions": subcortical_regions,
         "n_cortical_vertices": 20484,
         "n_subcortical_vertices": n_subcortical,
+        "operator_readiness": operator_readiness,
     }
 
 

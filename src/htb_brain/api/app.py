@@ -97,6 +97,15 @@ async def lifespan(app: FastAPI):
         except Exception:
             logger.exception("Failed to load subcortical model — cortical-only mode.")
 
+    # --- Initialize Operator Profile Store ---
+    from htb_brain.core.profile_store import ProfileStore
+    from pathlib import Path as _ProfilePath
+
+    profile_db = _ProfilePath(settings.model_cache_dir).parent / "data" / "operator_profiles.db"
+    profile_db.parent.mkdir(parents=True, exist_ok=True)
+    app.state.profile_store = ProfileStore(profile_db)
+    logger.info("ProfileStore ready at %s", profile_db)
+
     yield  # Application runs
 
     # Cleanup (if needed in future)
@@ -131,11 +140,13 @@ def create_app() -> FastAPI:
     from htb_brain.api.routes.predict_video import router as video_router
     from htb_brain.api.routes.health import router as health_router
     from htb_brain.api.routes.aggregate import router as aggregate_router
+    from htb_brain.api.routes.profile import router as profile_router
 
     app.include_router(predict_router)
     app.include_router(video_router)
     app.include_router(health_router)
     app.include_router(aggregate_router)
+    app.include_router(profile_router)
 
     # --- Root redirect ---
     @app.get("/", include_in_schema=False)

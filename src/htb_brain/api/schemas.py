@@ -44,6 +44,30 @@ class SubcorticalRegionResponse(BaseModel):
     engaged: bool = False
 
 
+# ---------------------------------------------------------------------------
+# Operator Readiness
+# ---------------------------------------------------------------------------
+
+class DimensionResponse(BaseModel):
+    """One operator readiness dimension in the prediction response."""
+    key: str
+    name: str
+    covered: bool
+    strength: float
+    srk_mode: str
+    details: dict
+
+
+class OperatorDimensionsResponse(BaseModel):
+    """All 6 operator readiness dimensions for a prediction."""
+    procedural_automaticity: DimensionResponse
+    threat_detection: DimensionResponse
+    situational_awareness: DimensionResponse
+    strategic_decision: DimensionResponse
+    analytical_synthesis: DimensionResponse
+    stress_resilience: DimensionResponse
+
+
 class PredictResponse(BaseModel):
     """Full response from the /api/v1/predict endpoint."""
     vertex_activations: list[float] = Field(
@@ -73,6 +97,10 @@ class PredictResponse(BaseModel):
     n_subcortical_vertices: int = Field(
         default=0,
         description="Number of subcortical mesh vertices appended after cortical",
+    )
+    operator_readiness: OperatorDimensionsResponse | None = Field(
+        default=None,
+        description="6-dimension operator readiness profile derived from brain engagement",
     )
 
 
