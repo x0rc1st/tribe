@@ -178,13 +178,22 @@ Started with 8 candidate dimensions. Dropped 2 after auditing which produce uniq
 **Cortical-only fallback:** Group 2 >= Strong (when subcortical data unavailable or unreliable)
 **Content that triggers it:** Timed CTF labs, repetitive tool drills, speed runs, muscle-memory exercises
 
-**Text input nuance:** TRIBE converts text to speech and predicts brain engagement for LISTENING to that text. Different text types produce different Dim 1 signals:
-- **Conceptual/declarative text** ("nmap is a network scanner that..."): Very low Dim 1. Engages comprehension, not motor circuits. Expected and correct.
-- **Procedural/instructional text** ("run `nmap -sV 10.10.10.5`, then check for..."): Low-Moderate Dim 1. Sequential action descriptions partially activate motor planning (premotor cortex) and mental rehearsal circuits — the brain simulates the action sequence while reading. This is the Fitts & Posner cognitive stage: acquiring procedural knowledge before it can be automated.
-- **Video of procedure execution**: Moderate Dim 1. Motor observation circuits (mirror neuron system) activate when watching someone perform actions.
-- **Actually performing the procedure**: High Dim 1 (cannot be measured by TRIBE — outside content prediction scope).
+**Multi-modal measurement strategy for Dim 1:** Different content modalities produce different Dim 1 signals. For best coverage, each HTB lab should be measured with BOTH its text writeup AND a video capture of the execution:
 
-A lab writeup is a necessary precursor to procedural automaticity (you need procedural knowledge before you can automate it), but it's not sufficient. TRIBE correctly assigns lab writeups a lower Dim 1 score than hands-on execution would produce. HTB should interpret low Dim 1 on text modules as "this content teaches procedural knowledge but doesn't build muscle memory — pair with hands-on practice."
+| Content Modality | Dim 1 Signal | What It Measures | TRIBE Modality |
+|:---|:---:|:---|:---|
+| **Conceptual/declarative text** ("nmap is a network scanner that...") | Very low | Comprehension, not motor circuits | Text → TTS pipeline |
+| **Procedural/instructional text** ("run `nmap -sV 10.10.10.5`, then check for...") | Low-Moderate | Motor planning, mental rehearsal (Fitts cognitive stage) | Text → TTS pipeline |
+| **Screen recording of lab execution** (hands typing, tool interaction, real-speed command sequences) | Moderate-High | Motor observation via mirror neuron system, premotor cortex, supplementary motor area | Video pipeline (TRIBE's strongest modality — trained on video fMRI) |
+| **Actually performing the procedure** | High | Full motor execution (cannot be measured by TRIBE — outside content prediction scope) | N/A |
+
+**Recommended approach for HTB labs:** Predict BOTH the text writeup AND a screen recording of the lab. The text captures Dims 3, 4, 5 (what cognitive skills the theory covers). The video captures Dim 1 (whether the hands-on component engages procedural circuits). The combined profile gives full dimension coverage for that module.
+
+**Why video matters for Dim 1 specifically:** TRIBE v2 was trained on video fMRI data (Wen2017). Video prediction is its strongest modality, not an afterthought. The trimodal transformer processes visual frames + audio simultaneously. A screen recording of real tool execution at normal speed activates motor observation circuits that text cannot engage.
+
+**Why this distinguishes good from bad procedural training:** A guided walkthrough video (narrator slowly explaining while clicking) will score LOW on Dim 1 despite being labeled "lab video." A speed-run execution video showing fluid command sequences will score HIGH. TRIBE distinguishes them — format labels cannot. This is where TRIBE's measurement adds value over simple content tagging.
+
+A lab writeup is a necessary precursor to procedural automaticity (Fitts cognitive stage: you need procedural knowledge before you can automate it), but it's not sufficient. HTB should interpret low Dim 1 on text-only modules as "this content teaches procedural knowledge but doesn't build muscle memory — pair with hands-on practice or execution video."
 
 **Cross-domain:** Aviation simulator hours. Surgical knot-tying drills. Military weapons handling drills.
 
@@ -421,6 +430,25 @@ Subcortical model (r=0.12, single subject, video-trained) is substantially weake
 ### 5.4 Validation Required
 
 Detection thresholds are derived from neuroscience literature and z-score distributions, not empirical correlation with operator performance. The critical validation step: predict brain engagement for content with KNOWN training outcomes, correlate dimension coverage with actual performance metrics.
+
+### 5.5 Honest Assessment of the Approach
+
+**What this framework IS:**
+- A neuroscience-grounded system for systematically analyzing which cognitive dimensions training content engages
+- A tool for identifying coverage gaps and recommending complementary content
+- Initial measurement is more nuanced than manual format tagging — continuous scores, unexpected pattern detection, mislabeled content identification
+
+**What this framework IS NOT (yet):**
+- A validated predictor of operator mastery. The claim "we guide to mastery" requires validation data showing that dimension coverage correlates with actual performance outcomes.
+- A replacement for performance assessment. TRIBE measures the training STIMULUS, not the learning OUTCOME. Whether an operator actually learned depends on factors TRIBE can't see: their prior knowledge, motivation, attention, and practice quality.
+
+**The defensible claim today:**
+> "We use a neuroscience-grounded framework to systematically analyze which cognitive dimensions our training content engages, identify gaps in coverage, and recommend complementary content. Brain engagement predictions from Meta's TRIBE v2 provide the measurement layer, with dimension detection rules informed by Rasmussen's SRK, Endsley's SA, Klein's NDM, and validated stress-performance models."
+
+**The claim after validation:**
+> "We measure how training content engages operator cognitive circuits and guide learning paths to ensure all readiness dimensions are covered — validated against actual performance outcomes on the HTB platform."
+
+**Path from current to validated:** Run predictions on 50-100 HTB modules. Correlate dimension profiles against known content quality (instructor ratings, learner pass rates, time-to-solve metrics). Tune detection thresholds based on empirical data. Publish correlation results.
 
 ---
 
@@ -661,7 +689,10 @@ If Stress Resilience is a gap but Procedural Automaticity is also a gap, recomme
 
 The intended use is **batch preprocessing of the HTB content library**, not real-time per-learner prediction:
 
-1. **Batch predict all modules** — run every module (text, video, lab writeup) through TRIBE once (~5 min per module)
+1. **Batch predict all modules** — run each module through TRIBE:
+   - **Text modules:** text → TTS → TRIBE prediction (~5 min per module)
+   - **Lab modules:** predict BOTH the text writeup AND a screen recording of the lab execution. Text captures Dims 3-5 (cognitive). Video captures Dim 1 (procedural). Merge profiles.
+   - **Video content:** direct video → TRIBE prediction (TRIBE's strongest modality)
 2. **Tag each module** — store its 6-dimension profile alongside existing metadata
 3. **Define per-role requirements** — "SOC Analyst L2 needs all 6 dimensions. Pen Tester needs heavy Dims 1+4+5"
 4. **For each learner on a path, compute gaps** — compare completed modules' dimension profiles against role requirements
@@ -669,7 +700,9 @@ The intended use is **batch preprocessing of the HTB content library**, not real
 
 Predictions happen on the CONTENT, not the learner. The brain engagement profile is a property of the training material. Process the library once (or on content updates), store dimension profiles, and recommendations become instant lookups.
 
-**Estimated batch processing:** 500 modules × ~5 min/module ≈ 42 hours one-time compute. After that, recommendations are database queries.
+**Estimated batch processing:** 500 modules × ~5 min text + ~10 min video where applicable ≈ 50-80 hours one-time compute. After that, recommendations are database queries.
+
+**Lab module dual-input merging:** When a lab has both text and video predictions, the module's dimension profile is the element-wise maximum of the two predictions — each dimension takes the higher score from whichever modality captured it better. This ensures text-heavy dimensions (3, 4, 5) and video-heavy dimensions (1, 2) are both represented.
 
 ---
 
