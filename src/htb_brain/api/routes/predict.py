@@ -95,6 +95,49 @@ def _get_evidence_weights() -> dict[int, float]:
     return _evidence_weights
 
 
+import copy
+
+# Neuroscience-based beta weights for equal-quality subcortical model.
+# These reflect the actual cortical/subcortical contribution per cognitive
+# function based on published neuroscience (see design doc).
+NEUROSCIENCE_BETAS: dict[int, float] = {
+    1: 0.40,   # G1 Strategic: caudate drives reward-based learning loops
+    2: 0.70,   # G2 Procedural: automaticity LIVES in putamen/pallidum
+    3: 0.15,   # G3 Language: overwhelmingly cortical, thalamus relays
+    # G4: no subcortical mapping
+    5: 0.25,   # G5 SA: thalamic reticular nucleus gates attention
+    6: 0.60,   # G6 Motivation: accumbens IS the reward engine
+    7: 0.75,   # G7 Memory: hippocampus IS memory encoding (patient H.M.)
+    # G8: no subcortical mapping
+    9: 0.65,   # G9 Threat: amygdala IS threat detection (LeDoux's low road)
+    # G10: no subcortical mapping
+}
+
+
+def _blend_groups(cortical_groups: list, subcortical_group_scores: dict, betas: dict[int, float]) -> list:
+    """Blend subcortical into cortical using given beta weights. Returns a new list."""
+    groups = copy.deepcopy(cortical_groups)
+    for gs in groups:
+        gid = gs["id"]
+        if gid not in subcortical_group_scores or gid not in betas:
+            continue
+        sc_contrib = subcortical_group_scores[gid]
+        beta = betas[gid]
+        if beta > 0:
+            gs["score"] = gs["score"] * (1 - beta) + sc_contrib * beta
+            gs["z_score"] = gs["score"]
+
+    # Re-rank
+    groups.sort(key=lambda x: x["score"], reverse=True)
+    max_z = max(gs["score"] for gs in groups) if groups else 1.0
+    max_z = max(max_z, 0.01)
+    for i, gs in enumerate(groups):
+        gs["rank"] = i + 1
+        gs["engagement_pct"] = round(max(0.0, gs["score"] / max_z) * 100, 1)
+
+    return groups
+
+
 def _merge_group_scores(cortical_groups: list, subcortical_group_scores: dict | None) -> list:
     """Blend subcortical group contributions into cortical group scores.
 
@@ -108,27 +151,9 @@ def _merge_group_scores(cortical_groups: list, subcortical_group_scores: dict | 
     from htb_brain.config import settings
     evidence_weights = _get_evidence_weights()
     reliability = settings.subcortical_reliability
+    betas = {gid: ew * reliability for gid, ew in evidence_weights.items()}
 
-    for gs in cortical_groups:
-        gid = gs["id"]
-        if gid not in subcortical_group_scores:
-            continue
-        sc_contrib = subcortical_group_scores[gid]
-        ew = evidence_weights.get(gid, 0.0)
-        beta = ew * reliability
-        if beta > 0:
-            gs["score"] = gs["score"] * (1 - beta) + sc_contrib * beta
-            gs["z_score"] = gs["score"]
-
-    # Re-rank
-    cortical_groups.sort(key=lambda x: x["score"], reverse=True)
-    max_z = max(gs["score"] for gs in cortical_groups) if cortical_groups else 1.0
-    max_z = max(max_z, 0.01)
-    for i, gs in enumerate(cortical_groups):
-        gs["rank"] = i + 1
-        gs["engagement_pct"] = round(max(0.0, gs["score"] / max_z) * 100, 1)
-
-    return cortical_groups
+    return _blend_groups(cortical_groups, subcortical_group_scores, betas)
 
 
 # ── Pipeline ─────────────────────────────────────────────────────────────
@@ -164,10 +189,17 @@ def _run_pipeline(
 
     subcortical_regions = []
     n_subcortical = 0
+    group_scores_neuroscience = None
 
     if sc_data is not None:
-        # Merge subcortical group contributions into cortical group scores
+        # Save cortical-only for neuroscience reblending
+        cortical_only = copy.deepcopy(group_scores_dicts)
+
+        # Merge subcortical group contributions into cortical group scores (conservative)
         group_scores_dicts = _merge_group_scores(group_scores_dicts, sc_data["group_scores"])
+
+        # Compute neuroscience-balanced blend (equal model quality assumption)
+        group_scores_neuroscience = _blend_groups(cortical_only, sc_data["group_scores"], NEUROSCIENCE_BETAS)
 
         # Build subcortical region response
         import json
@@ -227,6 +259,7 @@ def _run_pipeline(
         "vertex_activations": cortical_acts,
         "vertex_groups": vertex_groups,
         "group_scores": group_scores_dicts,
+        "group_scores_neuroscience": group_scores_neuroscience,
         "narrative_summary": narrative,
         "engaged_regions": result["engaged_regions"],
         "subcortical_regions": subcortical_regions,

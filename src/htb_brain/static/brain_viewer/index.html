@@ -626,7 +626,13 @@
         </div>
 
         <div class="panel-section">
-            <div class="panel-title">Top Regions</div>
+            <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
+                <span>Top Regions</span>
+                <label id="neuroToggleWrap" style="display:none;font-size:10px;font-weight:400;color:#8896ab;cursor:pointer;gap:5px;align-items:center;" title="Toggle between current conservative subcortical blending (r=0.12 model) and neuroscience-balanced weights (equal model quality assumption)">
+                    <span id="neuroLabel">Conservative</span>
+                    <input type="checkbox" id="neuroToggle" style="accent-color:#2EE7B6;cursor:pointer;">
+                </label>
+            </div>
             <ul class="region-list" id="regionList">
                 <li class="summary-empty">No data yet</li>
             </ul>
@@ -930,6 +936,25 @@
         }
     }
 
+    // ---- Neuroscience toggle state ----
+    let _currentGroups = null;
+    let _neuroGroups = null;
+
+    const neuroToggle = document.getElementById('neuroToggle');
+    const neuroLabel = document.getElementById('neuroLabel');
+    const neuroToggleWrap = document.getElementById('neuroToggleWrap');
+
+    neuroToggle.addEventListener('change', function() {
+        const useNeuro = neuroToggle.checked;
+        neuroLabel.textContent = useNeuro ? 'Neuroscience' : 'Conservative';
+        neuroLabel.style.color = useNeuro ? '#2EE7B6' : '#8896ab';
+        const groups = useNeuro ? _neuroGroups : _currentGroups;
+        if (groups) {
+            renderRegionList(groups);
+            renderRadarChart(groups);
+        }
+    });
+
     // ---- Handle API result ----
     function handlePredictionResult(result, inputText) {
         // API returns: vertex_activations, group_scores, narrative_summary, engaged_regions
@@ -970,6 +995,16 @@
         }
 
         if (groups) {
+            _currentGroups = groups;
+            _neuroGroups = result.group_scores_neuroscience || null;
+
+            // Show toggle if neuroscience scores are available
+            neuroToggleWrap.style.display = _neuroGroups ? 'flex' : 'none';
+            // Reset toggle to conservative on new prediction
+            neuroToggle.checked = false;
+            neuroLabel.textContent = 'Conservative';
+            neuroLabel.style.color = '#8896ab';
+
             if (viewer) viewer.setGroupData(groups);
             renderRegionList(groups);
             renderRadarChart(groups);
