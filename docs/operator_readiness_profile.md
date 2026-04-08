@@ -39,12 +39,12 @@ No single model of expertise adequately covers cognition, motor skills, decision
 #### Klein's Naturalistic Decision Making / Recognition-Primed Decision Model
 **Role in our framework:** Decision-making and pattern matching (Dimensions 4, 5)
 **Origin:** Commissioned by US Army Research Institute. Developed from field studies of fireground commanders, military officers, ICU nurses.
-**What it provides:** Experts don't compare options — they recognize situations and evaluate a single course of action. The brain basis: hippocampal pattern matching + prefrontal evaluation.
+**What it provides:** Experts don't compare options — they recognize situations and evaluate a single course of action. Klein describes this at the cognitive level; our neural mapping (hippocampal pattern matching + prefrontal evaluation) is our interpretation based on the neuroscience of recognition and executive function.
 **Source:** [Klein 2008 — Naturalistic Decision Making](https://journals.sagepub.com/doi/10.1518/001872008X288385)
 
 #### Endsley's Situational Awareness Model
 **Role in our framework:** Awareness and mental model maintenance (Dimension 3)
-**What it provides:** Three hierarchical levels: perception of elements, comprehension of meaning, projection of future state. SA loss documented in 88% of aviation accidents.
+**What it provides:** Three hierarchical levels: perception of elements, comprehension of meaning, projection of future state. SA problems documented in 88% of human-error commercial aviation accidents (Jones & Endsley 1996).
 **Source:** [Endsley 1995 — Situation Awareness Theory](https://journals.sagepub.com/doi/10.1518/001872095779049543)
 
 #### Yerkes-Dodson / Arnsten Stress-Performance Model
@@ -99,17 +99,25 @@ Each dimension maps to a Rasmussen cognitive mode AND uses a domain-specific mod
 
 ### 1.5 Rasmussen SRK Failure Mode Analysis
 
-Each cognitive mode has a specific error type. This is what makes SRK uniquely valuable — it doesn't just describe performance, it predicts HOW operators fail:
+Each cognitive mode has a specific error type. This is what makes SRK uniquely valuable — it doesn't just describe performance, it predicts HOW operators fail.
 
-| SRK Mode | Error Type | Example | Dimension Gap That Causes It |
+**Rasmussen's original error taxonomy (1983):**
+
+| SRK Mode | Error Type | Example | Dimension Gap |
 |:---|:---|:---|:---|
-| **Skill-based** | **Slips** — correct intention, wrong execution. The procedure is known but mis-executed under distraction or fatigue. | Operator types wrong IP in firewall rule, runs `rm -rf` in wrong directory | Low Dim 1 (not enough drill repetitions to make execution error-proof) |
-| **Rule-based** | **Rule-based mistakes** — wrong rule selected for the situation. The operator matches to the wrong pattern. | Operator applies the phishing playbook to what is actually a supply chain compromise | Low Dim 3 + 5 (poor SA led to misidentification, poor synthesis missed distinguishing features) |
-| **Knowledge-based** | **Knowledge-based mistakes** — wrong mental model. Reasoning from incorrect first principles. | Operator assumes attacker has left the network because C2 traffic stopped, missing the persistence mechanism | Low Dim 4 + 5 (weak strategic reasoning, incomplete analytical model) |
-| **Mode transition failure** | **Failure to shift modes.** Operator stays in rule-based when the situation requires knowledge-based reasoning (novel scenario). | Operator keeps applying standard IR playbook to a zero-day with no matching signatures | Low Dim 5 adaptive sub-signal (no Group 1 elevation — can't improvise) |
-| **Stress-induced regression** | **Regression to lower mode.** Under stress, knowledge-based degrades to rule-based, rule-based degrades to skill-based. | Operator reverts to memorized checklist during a crisis that requires creative response | Low Dim 6 (procedures haven't been stress-tested) |
+| **Skill-based** | **Slips** — correct intention, wrong action. Attentional or perceptual failure during automated execution. | Operator types wrong IP in firewall rule, runs command in wrong terminal | Low Dim 1 (execution not error-proof) |
+| **Skill-based** | **Lapses** — correct intention, forgotten step. Memory failure during automated sequence. | Operator skips a step in the forensic preservation chain, forgets to document a finding | Low Dim 1 (sequence not fully automated) |
+| **Rule-based** | **Rule-based mistakes** — wrong rule selected for the situation. The operator matches to the wrong pattern or applies the wrong procedure. | Operator applies the phishing playbook to a supply chain compromise | Low Dim 3 + 5 (poor SA, poor synthesis) |
+| **Knowledge-based** | **Knowledge-based mistakes** — wrong mental model. Reasoning from incorrect first principles under novel conditions. | Operator assumes attacker left because C2 traffic stopped, missing persistence mechanism | Low Dim 4 + 5 (weak reasoning, incomplete model) |
 
-This maps directly to gap recommendations: the error type tells you which dimension to train.
+**Our extensions (synthesized from Rasmussen + Arnsten):**
+
+| Pattern | Error Type | Example | Dimension Gap |
+|:---|:---|:---|:---|
+| **Mode transition failure** | Operator stays in rule-based when the situation requires knowledge-based reasoning (novel, unprecedented scenario). Not in Rasmussen's original taxonomy but a natural consequence of his framework. | Operator keeps applying standard IR playbook to a zero-day with no matching signatures | Low Dim 5 adaptive sub-signal |
+| **Stress-induced regression** | Under acute stress, the operator regresses from a higher to lower SRK mode (Arnsten's prefrontal degradation mechanism applied to Rasmussen's framework). The operator THINKS they're still reasoning but has actually regressed to pattern-matching or automatic responses. | Operator reverts to memorized checklist during a crisis that requires creative response | Low Dim 6 (not stress-tested) |
+
+The error type maps directly to gap recommendations: the error tells you which dimension to train.
 
 ### 1.6 Applicable Domains
 
@@ -167,7 +175,10 @@ Started with 8 candidate dimensions. Dropped 2 after auditing which produce uniq
 
 **Unique anchor:** Group 2 + Putamen + Pallidum
 **Detection rule:** Group 2 >= Moderate AND (Putamen OR Pallidum) engaged
+**Cortical-only fallback:** Group 2 >= Strong (when subcortical data unavailable or unreliable)
 **Content that triggers it:** Timed CTF labs, repetitive tool drills, speed runs, muscle-memory exercises
+
+**Important limitation for text input:** TRIBE converts text to speech and predicts brain engagement for LISTENING to that text. Reading or hearing a description of a procedure does not activate motor circuits the same way as performing the procedure. This means text-based modules will almost never trigger Dimension 1 — and that is CORRECT. Text content does not build procedural automaticity. Only hands-on practice does. HTB should not interpret "zero Dim 1 coverage" on text modules as a deficiency — it's the expected result. Video content showing someone executing procedures may partially trigger Dimension 1 through motor observation circuits.
 
 **Cross-domain:** Aviation simulator hours. Surgical knot-tying drills. Military weapons handling drills.
 
@@ -193,6 +204,7 @@ Started with 8 candidate dimensions. Dropped 2 after auditing which produce uniq
 
 **Unique anchor:** Group 9 + Amygdala
 **Detection rule:** Group 9 >= Moderate AND Amygdala engaged
+**Cortical-only fallback:** Group 9 >= Strong (when subcortical data unavailable or unreliable)
 **Content that triggers it:** Escalating scenarios, red team simulations, false positive discrimination, mixed benign/malicious analysis
 
 **Caveat:** TRIBE can't distinguish calibrated threat training from merely alarming content. Both light up the same circuits. The measurement tells you whether the content creates the conditions for calibration; actual calibration requires exposure over time.
@@ -213,7 +225,7 @@ Started with 8 candidate dimensions. Dropped 2 after auditing which produce uniq
 **Rasmussen mode:** Rule-based + Knowledge-based (SA Level 1 can be skill-based, but Levels 2-3 require higher cognitive modes)
 **Domain model:** Endsley SA
 
-**What it is.** Endsley's three levels: (1) perception of elements, (2) comprehension of meaning, (3) projection of future state. Loss of SA is documented in 88% of aviation accidents and is consistently cited across military, surgical, and nuclear safety domains.
+**What it is.** Endsley's three levels: (1) perception of elements, (2) comprehension of meaning, (3) projection of future state. Loss of SA is documented in 88% of human-error commercial aviation accidents (Jones & Endsley 1996) and is consistently cited across military, surgical, and nuclear safety domains.
 
 **The neural mechanism.** Level 1 (perception): thalamic reticular nucleus gates sensory information. Level 2 (comprehension): perisylvian language network (Group 3) and dorsal parietal attention network (Group 5) integrate perceived elements. Level 3 (projection): inferior parietal lobule and angular gyrus (Group 8) construct mental models of future states, supported by hippocampal relational memory.
 
@@ -228,7 +240,8 @@ Started with 8 candidate dimensions. Dropped 2 after auditing which produce uniq
 
 **Evidence level:** Very strong
 **Sources:**
-- [Endsley 1995](https://journals.sagepub.com/doi/10.1518/001872095779049543)
+- [Endsley 1995 — SA Theory](https://journals.sagepub.com/doi/10.1518/001872095779049543)
+- [Jones & Endsley 1996 — SA errors in aviation](https://pubmed.ncbi.nlm.nih.gov/8827130/) — 88% of human-error accidents involved SA problems; 76% were Level 1 (perception) failures
 - [USAARL 2025 — Holistic SA and Decision Making](https://usaarl.health.mil/assets/docs/techReports/2025-10.pdf)
 
 ---
@@ -276,6 +289,7 @@ Started with 8 candidate dimensions. Dropped 2 after auditing which produce uniq
 
 **Unique anchor:** Group 8 + Group 7 + Hippocampus combination
 **Detection rule:** Group 8 >= Moderate AND Group 7 >= Baseline AND Hippocampus engaged
+**Cortical-only fallback:** Group 8 >= Moderate AND Group 7 >= Moderate (when subcortical data unavailable or unreliable — stricter cortical threshold compensates for missing hippocampal confirmation)
 **Sub-signal:** If Group 1 >= Moderate, flag as "adaptive" variant
 **Content that triggers it:** Log analysis, anomaly detection, attack reconstruction. Adaptive: novel scenarios, zero-day sims, broken assumptions.
 
@@ -328,28 +342,34 @@ The 6 dimensions form a dependency structure rooted in Rasmussen's SRK hierarchy
                     Stress Resilience (6)
               "Do ALL capabilities survive pressure?"
               Rasmussen: all modes under degradation
-                           |
-              depends on ALL dimensions below
-                           |
-        +---------+---------+---------+
-        |         |         |         |
-  Procedural  Situational  Strategic  Analytical
-  Automaticity Awareness   Decision   Synthesis
-     (1)        (3)         (4)        (5)
-   SKILL      RULE+KNOW    KNOWLEDGE  KNOW+RULE
-        |         |         |         |
-        +---------+---------+---------+
-                           |
-                  Threat Detection (2)
-              "Can I recognize what matters?"
-              Rasmussen: cross-mode recognition
+                    |                 |
+                    |         depends on (1) and (2)
+                    |                 |
+              Procedural        Threat Detection
+              Automaticity           (2)
+                 (1)
+                SKILL
+
+              Strategic Decision (4)
+              "Can the operator decide?"
+                    |
+              depends on (5)
+                    |
+              Analytical Synthesis (5)
+              "Can the operator connect dots?"
+                    |
+              depends on (3)
+                    |
+              Situational Awareness (3)
+              "Can the operator see the picture?"
 ```
 
-**Key dependencies:**
-- **Stress Resilience depends on Procedural Automaticity.** If procedures haven't reached Fitts & Posner's autonomous stage, they WILL fail when Arnsten's stress pathway kicks in. Train Dimension 1 before testing Dimension 6.
-- **Analytical Synthesis depends on Situational Awareness.** You can't synthesize what you haven't perceived (Endsley: Level 2 depends on Level 1).
-- **Strategic Decision depends on Analytical Synthesis.** Decisions are only as good as the mental model they're based on (Klein: RPD requires accurate situation assessment).
-- **Stress Resilience is the capstone.** It tests whether Dimensions 1-5 survive Rasmussen's stress-induced regression.
+**Enforced dependencies (from DEPENDENCY_ORDER):**
+- **Stress Resilience (6) depends on Procedural Automaticity (1) + Threat Detection (2).** If procedures haven't reached Fitts & Posner's autonomous stage, they WILL fail when Arnsten's stress pathway kicks in. Train Dimensions 1 and 2 before testing Dimension 6.
+- **Analytical Synthesis (5) depends on Situational Awareness (3).** You can't synthesize what you haven't perceived (Endsley: comprehension depends on perception).
+- **Strategic Decision (4) depends on Analytical Synthesis (5).** Decisions are only as good as the mental model they're based on (Klein: RPD requires accurate situation assessment).
+- **Stress Resilience (6) is the capstone.** It tests whether capabilities survive Arnsten's stress-induced prefrontal degradation.
+- **Dimensions 1, 2, 3 have no prerequisites.** They can be trained in parallel from the start.
 
 **Implication for gap recommendations:** Don't recommend stress resilience training if procedural automaticity is low. The operator needs to automate procedures FIRST (Fitts & Posner autonomous stage), then test them under stress (Yerkes-Dodson). Recommending a time-pressured CTF to someone who can't execute the basic procedure is setting them up for Rasmussen's most dangerous failure mode: stress-induced regression.
 
@@ -435,12 +455,16 @@ def detect_dimensions(group_scores: dict, subcortical: dict) -> dict:
 
     dimensions = {}
 
+    STRONG = 1.0
+
     # 1. Procedural Automaticity (Skill-based)
     g2_ok = g.get(2, -1) >= MODERATE
     putamen_engaged = sc.get("Putamen", {}).get("engaged", False)
     pallidum_engaged = sc.get("Pallidum", {}).get("engaged", False)
+    sc_ok = putamen_engaged or pallidum_engaged
+    cortical_fallback = g.get(2, -1) >= STRONG  # fallback when subcortical unreliable
     dimensions["procedural_automaticity"] = {
-        "covered": g2_ok and (putamen_engaged or pallidum_engaged),
+        "covered": g2_ok and (sc_ok or cortical_fallback),
         "strength": g.get(2, 0),
         "srk_mode": "skill-based",
         "details": {
@@ -453,8 +477,9 @@ def detect_dimensions(group_scores: dict, subcortical: dict) -> dict:
     # 2. Threat Detection & Calibration (Cross-mode)
     g9_ok = g.get(9, -1) >= MODERATE
     amygdala_engaged = sc.get("Amygdala", {}).get("engaged", False)
+    g9_strong = g.get(9, -1) >= STRONG  # cortical-only fallback
     dimensions["threat_detection"] = {
-        "covered": g9_ok and amygdala_engaged,
+        "covered": g9_ok and (amygdala_engaged or g9_strong),
         "strength": g.get(9, 0),
         "srk_mode": "cross-mode",
         "details": {
@@ -497,10 +522,11 @@ def detect_dimensions(group_scores: dict, subcortical: dict) -> dict:
     # 5. Analytical Synthesis & Pattern Matching (Knowledge + Rule)
     g8_ok = g.get(8, -1) >= MODERATE
     g7_ok = g.get(7, -1) >= BASELINE
+    g7_mod = g.get(7, -1) >= MODERATE  # stricter cortical-only fallback
     hippo_engaged = sc.get("Hippocampus", {}).get("engaged", False)
     is_adaptive = g8_ok and g.get(1, -1) >= MODERATE
     dimensions["analytical_synthesis"] = {
-        "covered": g8_ok and g7_ok and hippo_engaged,
+        "covered": g8_ok and (g7_ok and hippo_engaged or g7_mod),
         "strength": g.get(8, 0),
         "srk_mode": "knowledge-based" if is_adaptive else "rule-based",
         "details": {
@@ -625,7 +651,23 @@ If Stress Resilience is a gap but Procedural Automaticity is also a gap, recomme
 
 ---
 
-## 10. Implementation Phases
+## 10. Operational Workflow
+
+The intended use is **batch preprocessing of the HTB content library**, not real-time per-learner prediction:
+
+1. **Batch predict all modules** — run every module (text, video, lab writeup) through TRIBE once (~5 min per module)
+2. **Tag each module** — store its 6-dimension profile alongside existing metadata
+3. **Define per-role requirements** — "SOC Analyst L2 needs all 6 dimensions. Pen Tester needs heavy Dims 1+4+5"
+4. **For each learner on a path, compute gaps** — compare completed modules' dimension profiles against role requirements
+5. **Serve recommendations instantly** — dimension profiles are precomputed properties of content, not per-learner predictions
+
+Predictions happen on the CONTENT, not the learner. The brain engagement profile is a property of the training material. Process the library once (or on content updates), store dimension profiles, and recommendations become instant lookups.
+
+**Estimated batch processing:** 500 modules × ~5 min/module ≈ 42 hours one-time compute. After that, recommendations are database queries.
+
+---
+
+## 11. Implementation Phases
 
 ### Phase 1: Dimension Scoring Engine
 - Implement `detect_dimensions()` function
