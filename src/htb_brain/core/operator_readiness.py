@@ -45,34 +45,53 @@ def detect_dimensions(
 
     dimensions: dict[str, dict] = {}
 
+    # -- Subcortical helpers (strong = engaged AND z >= 1.0) --
+    # The subcortical model (r=0.12) is too weak to serve as a binary gate.
+    # Instead: cortical MODERATE alone triggers coverage; subcortical boosts
+    # strength. When a subcortical structure shows z >= 1.0 (very confident),
+    # it can independently trigger the dimension even if cortical is below
+    # MODERATE — the structure IS the circuit, not a proxy.
+    def _sc_strong(name: str) -> bool:
+        """True if subcortical structure is engaged AND z >= STRONG."""
+        s = sc.get(name, {})
+        return s.get("engaged", False) and s.get("z_score", -1) >= STRONG
+
+    putamen_or_pallidum = _sc_strong("Putamen") or _sc_strong("Pallidum")
+    amygdala_strong = _sc_strong("Amygdala")
+    hippo_strong = _sc_strong("Hippocampus")
+
     # 1. Procedural Automaticity (Skill-based)
+    # Cortical motor (G2) >= MODERATE is sufficient — text predicting motor
+    # planning (Fitts cognitive stage) is a valid procedural signal.
+    # Subcortical (Putamen/Pallidum) boosts strength, doesn't gate.
     g2_ok = g.get(2, -1) >= MODERATE
-    putamen_engaged = sc.get("Putamen", {}).get("engaged", False)
-    pallidum_engaged = sc.get("Pallidum", {}).get("engaged", False)
-    sc_ok = putamen_engaged or pallidum_engaged
-    cortical_fallback = g.get(2, -1) >= STRONG
     dimensions["procedural_automaticity"] = {
-        "covered": g2_ok and (sc_ok or cortical_fallback),
+        "covered": g2_ok or putamen_or_pallidum,
         "strength": g.get(2, 0.0),
         "srk_mode": "skill-based",
         "details": {
             "cortical_motor": g.get(2, 0.0),
             "putamen": sc.get("Putamen", {}).get("z_score", 0.0),
             "pallidum": sc.get("Pallidum", {}).get("z_score", 0.0),
+            "subcortical_confirmed": putamen_or_pallidum,
         },
     }
 
     # 2. Threat Detection & Calibration (Cross-mode)
+    # Primary: cortical threat (G9) >= MODERATE.
+    # Alt: Amygdala strongly engaged (z >= 1.0) — the amygdala IS the threat
+    # circuit, not a proxy. When it fires strongly, threat processing is real
+    # even if cortical G9 (insular cortex) is below threshold.
     g9_ok = g.get(9, -1) >= MODERATE
-    amygdala_engaged = sc.get("Amygdala", {}).get("engaged", False)
-    g9_strong = g.get(9, -1) >= STRONG
+    amygdala_z = sc.get("Amygdala", {}).get("z_score", 0.0)
     dimensions["threat_detection"] = {
-        "covered": g9_ok and (amygdala_engaged or g9_strong),
-        "strength": g.get(9, 0.0),
+        "covered": g9_ok or amygdala_strong,
+        "strength": max(g.get(9, 0.0), amygdala_z) if amygdala_strong else g.get(9, 0.0),
         "srk_mode": "cross-mode",
         "details": {
             "cortical_threat": g.get(9, 0.0),
-            "amygdala": sc.get("Amygdala", {}).get("z_score", 0.0),
+            "amygdala": amygdala_z,
+            "amygdala_direct": amygdala_strong,
             "motivation": g.get(6, 0.0),
         },
     }
@@ -108,38 +127,46 @@ def detect_dimensions(
     }
 
     # 5. Analytical Synthesis & Pattern Matching (Knowledge + Rule)
+    # Primary: G8 >= MODERATE AND G7 >= BASELINE (cortical path).
+    # Alt: Hippocampus strongly engaged AND G7 >= BASELINE — the hippocampus
+    # IS the memory binding circuit for synthesis. When it fires at z >= 1.0,
+    # synthesis is happening even if cortical G8 is below MODERATE.
     g8_ok = g.get(8, -1) >= MODERATE
     g7_ok = g.get(7, -1) >= BASELINE
-    g7_mod = g.get(7, -1) >= MODERATE
-    hippo_engaged = sc.get("Hippocampus", {}).get("engaged", False)
-    is_adaptive = g8_ok and g.get(1, -1) >= MODERATE
+    hippo_z = sc.get("Hippocampus", {}).get("z_score", 0.0)
+    is_adaptive = (g8_ok or hippo_strong) and g.get(1, -1) >= MODERATE
     dimensions["analytical_synthesis"] = {
-        "covered": g8_ok and ((g7_ok and hippo_engaged) or g7_mod),
-        "strength": g.get(8, 0.0),
+        "covered": (g8_ok and g7_ok) or (hippo_strong and g7_ok),
+        "strength": max(g.get(8, 0.0), hippo_z) if hippo_strong else g.get(8, 0.0),
         "srk_mode": "knowledge-based" if is_adaptive else "rule-based",
         "details": {
             "synthesis": g.get(8, 0.0),
             "memory_encoding": g.get(7, 0.0),
-            "hippocampus": sc.get("Hippocampus", {}).get("z_score", 0.0),
+            "hippocampus": hippo_z,
+            "hippocampus_direct": hippo_strong,
             "adaptive": is_adaptive,
         },
     }
 
     # 6. Stress Resilience (All modes under degradation)
+    # Co-activation of cognitive + threat circuits. Includes subcortical
+    # direct paths: amygdala-strong counts as threat activation.
     cognitive_ok = (
         g.get(1, -1) >= MODERATE
         or g.get(5, -1) >= MODERATE
         or g.get(8, -1) >= MODERATE
     )
-    threat_ok = g.get(9, -1) >= MODERATE
+    threat_ok = g.get(9, -1) >= MODERATE or amygdala_strong
     cognitive_peak = max(g.get(1, -1), g.get(5, -1), g.get(8, -1))
+    threat_peak = max(g.get(9, -1), amygdala_z) if amygdala_strong else g.get(9, -1)
     dimensions["stress_resilience"] = {
         "covered": cognitive_ok and threat_ok,
-        "strength": min(cognitive_peak, g.get(9, -1)),
+        "strength": min(cognitive_peak, threat_peak),
         "srk_mode": "all-modes-degraded",
         "details": {
             "cognitive_peak": cognitive_peak,
             "threat_activation": g.get(9, 0.0),
+            "amygdala_direct": amygdala_strong,
             "co_activation": cognitive_ok and threat_ok,
         },
     }

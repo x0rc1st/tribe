@@ -1,4 +1,4 @@
-"""Seed operator analyst-001 with realistic video-equivalent module data."""
+"""Seed operator analyst-001 with real prediction data + video-equivalent modules."""
 
 import json
 import urllib.request as ur
@@ -24,11 +24,53 @@ def record(op, mid, mname, gs, sc):
     print(f"  {mname}: {len(covered)} dims -> {covered}")
 
 
-print("Recording video-equivalent modules for analyst-001...")
+def delete(op):
+    req = ur.Request(f"{BASE}/profile/{op}", method="DELETE")
+    resp = ur.urlopen(req)
+    result = json.loads(resp.read())
+    print(f"Deleted {result['deleted_modules']} old modules for {op}")
+
+
+# Clean slate
+delete("analyst-001")
+print()
+print("Recording modules for analyst-001...")
 print()
 
+# Module 1: Nmap intro text — real TRIBE prediction data
+record("analyst-001", "htb-nmap-101", "Intro to Nmap Scanning (text)", [
+    {"id": 1, "z_score": -0.40}, {"id": 2, "z_score": 0.27},
+    {"id": 3, "z_score": 0.15}, {"id": 4, "z_score": -0.05},
+    {"id": 5, "z_score": 0.22}, {"id": 6, "z_score": 0.31},
+    {"id": 7, "z_score": -0.21}, {"id": 8, "z_score": -0.21},
+    {"id": 9, "z_score": -0.96}, {"id": 10, "z_score": -0.29},
+], [
+    {"name": "Putamen", "z_score": 0.30, "group_ids": [2], "engaged": False},
+    {"name": "Amygdala", "z_score": -0.50, "group_ids": [9], "engaged": False},
+    {"name": "Hippocampus", "z_score": 0.10, "group_ids": [7], "engaged": False},
+])
+
+# Module 2: SOC incident text — real TRIBE prediction data
+record("analyst-001", "htb-soc-incident-01",
+       "SOC Incident: DNS C2 + Lateral Movement (text)", [
+    {"id": 1, "z_score": -0.332}, {"id": 2, "z_score": 0.450},
+    {"id": 3, "z_score": 1.096}, {"id": 4, "z_score": -0.310},
+    {"id": 5, "z_score": 0.121}, {"id": 6, "z_score": -0.223},
+    {"id": 7, "z_score": -0.244}, {"id": 8, "z_score": 0.157},
+    {"id": 9, "z_score": -0.691}, {"id": 10, "z_score": -0.335},
+], [
+    {"name": "Thalamus", "z_score": -0.366, "group_ids": [3, 5], "engaged": False},
+    {"name": "Caudate", "z_score": -1.031, "group_ids": [1], "engaged": False},
+    {"name": "Putamen", "z_score": -0.771, "group_ids": [2], "engaged": False},
+    {"name": "Pallidum", "z_score": 0.439, "group_ids": [2], "engaged": False},
+    {"name": "Hippocampus", "z_score": 1.534, "group_ids": [7], "engaged": True},
+    {"name": "Amygdala", "z_score": 1.248, "group_ids": [9], "engaged": True},
+    {"name": "Accumbens", "z_score": -1.052, "group_ids": [6], "engaged": False},
+])
+
 # Module 3: SOC Dashboard Monitoring video — strong SA + synthesis
-record("analyst-001", "htb-soc-dashboard-vid", "SOC Dashboard Monitoring (video)", [
+record("analyst-001", "htb-soc-dashboard-vid",
+       "SOC Dashboard Monitoring (video)", [
     {"id": 1, "z_score": 0.42}, {"id": 2, "z_score": 0.35},
     {"id": 3, "z_score": 0.88}, {"id": 4, "z_score": 0.15},
     {"id": 5, "z_score": 0.72}, {"id": 6, "z_score": 0.38},
@@ -42,7 +84,8 @@ record("analyst-001", "htb-soc-dashboard-vid", "SOC Dashboard Monitoring (video)
 ])
 
 # Module 4: Timed CTF speedrun video — procedural + threat
-record("analyst-001", "htb-ctf-speedrun-vid", "Timed CTF Speedrun (video)", [
+record("analyst-001", "htb-ctf-speedrun-vid",
+       "Timed CTF Speedrun (video)", [
     {"id": 1, "z_score": 0.55}, {"id": 2, "z_score": 1.12},
     {"id": 3, "z_score": 0.61}, {"id": 4, "z_score": 0.08},
     {"id": 5, "z_score": 0.48}, {"id": 6, "z_score": 0.72},
@@ -58,7 +101,8 @@ record("analyst-001", "htb-ctf-speedrun-vid", "Timed CTF Speedrun (video)", [
 ])
 
 # Module 5: Tabletop IR exercise video — strategic + analytical
-record("analyst-001", "htb-tabletop-ir-vid", "Tabletop IR Exercise (video)", [
+record("analyst-001", "htb-tabletop-ir-vid",
+       "Tabletop IR Exercise (video)", [
     {"id": 1, "z_score": 0.88}, {"id": 2, "z_score": 0.22},
     {"id": 3, "z_score": 0.95}, {"id": 4, "z_score": 0.31},
     {"id": 5, "z_score": 0.61}, {"id": 6, "z_score": 0.45},
