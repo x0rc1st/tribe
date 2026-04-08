@@ -23,13 +23,13 @@ import math
 # Readiness accumulation
 # ---------------------------------------------------------------------------
 
-TAU = 2.5  # saturation rate
+TAU = 20.0  # calibrated to HTB paths: ~18 modules + ~18 labs + team exercise
 
 READINESS_LEVELS = [
-    (0.70, "ready"),       # sustained strong engagement
-    (0.40, "proficient"),  # solid multi-module engagement
-    (0.15, "developing"),  # some engagement, building up
-    (0.00, "untrained"),   # little to no engagement
+    (0.70, "saturated"),    # extensive exposure, diminishing returns from more of the same
+    (0.40, "substantial"),  # significant training signal accumulated
+    (0.15, "building"),     # accumulating exposure, early training
+    (0.00, "minimal"),      # barely exposed to this dimension
 ]
 
 GAP_THRESHOLD = 0.15  # readiness below this = gap
@@ -41,11 +41,11 @@ def compute_readiness(strengths: list[float]) -> float:
     Uses exponential saturation: readiness = 1 - exp(-raw_signal / tau).
     Diminishing returns model neural pathway consolidation.
 
-    At tau=2.5 with strength ~0.5 per module:
-      1 module   → 18% (developing)
-      3 modules  → 45% (proficient)
-      5 modules  → 63% (proficient)
-      8 modules  → 80% (ready)
+    Calibrated to HTB learning paths (~18 modules + ~18 labs + team ex):
+      After theory modules (~18×0.3) →  24% (building)
+      After theory + labs (~36×avg)  →  56% (substantial)
+      After full path + team ex      →  57% (substantial)
+      After 2 full paths             →  82% (saturated)
     """
     raw_signal = sum(strengths)  # strengths are already non-negative
     return 1.0 - math.exp(-raw_signal / TAU)

@@ -183,10 +183,10 @@ function drawRadar(canvas, dimensions) {
 // ── Dimension summary list ───────────────────────────────────────
 
 const LEVEL_COLORS = {
-    "ready": COLORS.neonGreen,
-    "proficient": COLORS.cyan,
-    "developing": COLORS.warning,
-    "untrained": COLORS.danger,
+    "saturated": COLORS.neonGreen,
+    "substantial": COLORS.cyan,
+    "building": COLORS.warning,
+    "minimal": COLORS.danger,
 };
 
 function renderDimensions(container, dimensions) {
