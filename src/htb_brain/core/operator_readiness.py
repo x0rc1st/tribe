@@ -122,11 +122,11 @@ def detect_dimensions(
     }
 
     # 2. Threat Detection & Calibration (Cross-mode)
+    # Subcortical (amygdala) determines engagement, cortical (G9) determines strength.
     g9_val = g.get(9, -1.0)
     g9_ok = g9_val >= MODERATE
-    threat_strength = max(g9_val, amygdala_z) if amygdala_strong else g9_val
     dimensions["threat_detection"] = {
-        "strength": threat_strength,
+        "strength": g9_val,
         "srk_mode": "cross-mode",
         "details": {
             "cortical_threat": g9_val,
@@ -183,13 +183,13 @@ def detect_dimensions(
     }
 
     # 5. Analytical Synthesis & Pattern Matching (Knowledge + Rule)
+    # Subcortical (hippocampus) determines engagement, cortical (G8) determines strength.
     g8_ok = g8_val >= MODERATE
     g7_val = g.get(7, -1.0)
     g7_ok = g7_val >= BASELINE
-    synthesis_strength = max(g8_val, hippo_z) if hippo_strong else g8_val
     is_adaptive = (g8_ok or hippo_strong) and g1_val >= MODERATE
     dimensions["analytical_synthesis"] = {
-        "strength": synthesis_strength,
+        "strength": g8_val,
         "srk_mode": "knowledge-based" if is_adaptive else "rule-based",
         "details": {
             "synthesis": g8_val,
@@ -201,12 +201,13 @@ def detect_dimensions(
     }
 
     # 6. Stress Resilience (All modes under degradation)
+    # Strength = min of cognitive and threat CORTICAL peaks.
+    # Amygdala determines engagement, but strength comes from cortical signals.
     cognitive_ok = (g1_val >= MODERATE or g5_val >= MODERATE or g8_val >= MODERATE)
     threat_ok = g9_val >= MODERATE or amygdala_strong
     cognitive_peak = max(g1_val, g5_val, g8_val)
-    threat_peak = max(g9_val, amygdala_z) if amygdala_strong else g9_val
     co_active = cognitive_ok and threat_ok
-    stress_strength = min(cognitive_peak, threat_peak) if co_active else min(cognitive_peak, threat_peak)
+    stress_strength = min(cognitive_peak, g9_val)
     dimensions["stress_resilience"] = {
         "strength": stress_strength,
         "srk_mode": "all-modes-degraded",
