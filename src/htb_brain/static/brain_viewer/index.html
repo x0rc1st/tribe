@@ -478,6 +478,23 @@
             background: var(--bg-card);
             border-radius: 4px;
             font-size: 12px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        .region-item:hover {
+            border-color: var(--border-focus);
+            background: var(--bg-input);
+        }
+
+        .region-item.selected {
+            border-color: var(--neon-green);
+            background: rgba(159, 239, 0, 0.08);
+        }
+
+        .region-item.dimmed {
+            opacity: 0.35;
         }
 
         .region-dot {
@@ -778,6 +795,12 @@
         viewer.addEventListener('mesh-loaded', (e) => {
             showStatus(`Mesh loaded — ${e.detail.vertexCount} vertices`, 'info');
         });
+
+        // Sync UI region list when clicking on 3D brain
+        viewer.addEventListener('group-selected', (e) => {
+            selectedRegionId = e.detail.groupId;
+            updateRegionListStyles();
+        });
     }
 
     // ---- Status bar ----
@@ -1051,6 +1074,8 @@
     }
 
     // ---- Render region list (right panel) ----
+    let selectedRegionId = -1;
+
     function renderRegionList(groups) {
         if (!groups || groups.length === 0) return;
 
@@ -1060,13 +1085,48 @@
             const color = getGroupColor(g.id);
             const label = g.score > 1.0 ? 'Strong' : g.score > 0.3 ? 'Moderate' : g.score > -0.3 ? 'Baseline' : 'Low';
             return `
-                <li class="region-item">
+                <li class="region-item" data-group-id="${g.id}">
                     <span class="region-dot" style="background:${color.hex}"></span>
                     <span class="region-name">${escHtml(g.name)}</span>
                     <span class="region-score" title="z-score: ${g.score.toFixed(2)}">${label}</span>
                 </li>
             `;
         }).join('');
+
+        // Click handler for region isolation
+        regionList.querySelectorAll('.region-item[data-group-id]').forEach(li => {
+            li.addEventListener('click', () => {
+                const gid = parseInt(li.dataset.groupId);
+                toggleRegionSelection(gid);
+            });
+        });
+    }
+
+    function toggleRegionSelection(groupId) {
+        if (selectedRegionId === groupId) {
+            // Deselect
+            selectedRegionId = -1;
+            if (viewer) viewer.clearSelection();
+        } else {
+            // Select
+            selectedRegionId = groupId;
+            if (viewer) viewer.selectGroup(groupId);
+        }
+        updateRegionListStyles();
+    }
+
+    function updateRegionListStyles() {
+        regionList.querySelectorAll('.region-item[data-group-id]').forEach(li => {
+            const gid = parseInt(li.dataset.groupId);
+            li.classList.remove('selected', 'dimmed');
+            if (selectedRegionId >= 0) {
+                if (gid === selectedRegionId) {
+                    li.classList.add('selected');
+                } else {
+                    li.classList.add('dimmed');
+                }
+            }
+        });
     }
 
     // ---- Render radar chart ----

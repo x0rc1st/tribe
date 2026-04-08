@@ -49,6 +49,7 @@ varying vec3 vViewPosition;
 
 uniform float uTime;
 uniform float uThreshold; // 0-1, controls which activations are visible
+uniform float uSelectedGroup; // -1 = show all, 0+ = isolate that group
 
 // 10 distinct group colors (neon palette)
 vec3 getGroupColor(float gid) {
@@ -115,6 +116,15 @@ void main() {
     // Emissive boost for bloom (minimal — preserve region color fidelity)
     float emissive = isSC ? 1.0 + a * 0.25 : 1.0 + a * 0.15;
     color *= emissive;
+
+    // Group isolation: dim non-selected groups when a selection is active
+    if (uSelectedGroup >= 0.0) {
+        float gid = floor(vGroupIndex + 0.5);
+        if (abs(gid - uSelectedGroup) > 0.5) {
+            color *= 0.08;
+            alpha *= 0.15;
+        }
+    }
 
     if (alpha < 0.005) discard;
 
@@ -220,6 +230,22 @@ class BrainViewer extends HTMLElement {
         if (this._glowMesh) {
             this._glowMesh.material.uniforms.uThreshold.value = value;
         }
+    }
+
+    /**
+     * Isolate a single group on the brain — dims all others.
+     * Pass -1 or call clearSelection() to show all groups again.
+     */
+    selectGroup(groupId) {
+        this._selectedGroup = groupId;
+        if (this._glowMesh) {
+            this._glowMesh.material.uniforms.uSelectedGroup.value = groupId;
+        }
+    }
+
+    /** Show all groups (clear isolation). */
+    clearSelection() {
+        this.selectGroup(-1);
     }
 
     /**
@@ -447,6 +473,7 @@ class BrainViewer extends HTMLElement {
                 uniforms: {
                     uTime: { value: 0 },
                     uThreshold: { value: 0.5 }, // default: show top ~50%
+                    uSelectedGroup: { value: -1.0 }, // -1 = show all
                 },
                 transparent: true,
                 blending: THREE.AdditiveBlending,
@@ -549,12 +576,22 @@ class BrainViewer extends HTMLElement {
 
     _onClick() {
         if (this._hoveredGroup >= 0) {
-            const group = this._groupData.find(g => g.id === this._hoveredGroup);
-            if (group) {
-                this._tooltip.showDetail(group);
+            // Toggle: click same group again to deselect
+            if (this._selectedGroup === this._hoveredGroup) {
+                this.clearSelection();
+                this._tooltip.hideDetail();
+                this.dispatchEvent(new CustomEvent('group-selected', { detail: { groupId: -1 } }));
+            } else {
+                this.selectGroup(this._hoveredGroup);
+                const group = this._groupData.find(g => g.id === this._hoveredGroup);
+                if (group) this._tooltip.showDetail(group);
+                this.dispatchEvent(new CustomEvent('group-selected', { detail: { groupId: this._hoveredGroup } }));
             }
         } else {
+            // Clicked empty space — clear selection
+            this.clearSelection();
             this._tooltip.hideDetail();
+            this.dispatchEvent(new CustomEvent('group-selected', { detail: { groupId: -1 } }));
         }
     }
 
