@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     threshold_percentile: float = 75.0
     bilateral_collapse: bool = True
 
+    # Subcortical blending — scales per-group evidence weights from the cognitive map.
+    # Increase as subcortical model improves (r=0.12 → 0.25; r=0.25 → 0.45; r=0.50 → 1.0).
+    subcortical_reliability: float = 0.25
+
     # API
     host: str = "0.0.0.0"
     port: int = 8000

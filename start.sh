@@ -6,7 +6,8 @@ set -e
 
 cd /workspace/tribe
 
-# Load HF token
+# Load HF token (required for WhisperX / LLaMA model downloads)
+export HF_TOKEN="${HF_TOKEN:-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}"
 if [ -f /root/.cache/huggingface/token ]; then
     export HF_TOKEN=$(cat /root/.cache/huggingface/token)
 fi

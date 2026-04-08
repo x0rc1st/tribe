@@ -7,7 +7,7 @@ Current State (April 2026)
 - Subcortical: 8,808 voxels, trained on Wen2017 subject1 (r=0.12, top-1=55%)
 - 7 structures: Thalamus, Caudate, Putamen, Pallidum, Hippocampus, Amygdala, Accumbens
 - Combined glass brain viewer with solid subcortical structures
-- 10 capability groups with cortical+subcortical blend (70/30)
+- 10 capability groups with per-group evidence-weighted blend (reliability=0.25)
 
 Known Limitations
 -----------------
@@ -19,8 +19,8 @@ Known Limitations
    Subcortical fMRI is inherently noisier (susceptibility artifacts in
    amygdala/hippocampus, smaller structure volumes, lower SNR).
 
-3. The 70/30 cortical/subcortical blend weight is a heuristic, not
-   empirically validated. Should be tuned on held-out data.
+3. Per-group evidence weights are neuroscience-informed estimates, not
+   empirically validated. Should be tuned on held-out data when available.
 
 4. Single subject training — cross-subject generalization would improve
    with more subjects.
@@ -48,11 +48,11 @@ Priority Next Steps
    - Does accumbens (motivation) predict completion rates?
    - This is the gold standard: predictive validity, not just face validity
 
-4. TUNE THE BLEND WEIGHT
-   - Current 70/30 cortical/subcortical is a heuristic
+4. TUNE THE BLEND WEIGHTS
+   - Per-group evidence weights are set; reliability discount (0.25) needs validation
    - Collect predictions on a set of known-engagement content
-   - Optimize the blend ratio to maximize correlation with actual engagement metrics
-   - May vary per group (hippocampus contribution to Group 7 should be higher than 30%)
+   - Optimize reliability discount and per-group weights against actual engagement metrics
+   - Bump subcortical_reliability in config.py as model r improves with more subjects/data
 
 5. ADD LAHNER2024BOLD (BOLD Moments)
    - 10 subjects watching short video clips

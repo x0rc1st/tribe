@@ -23,7 +23,7 @@ Input (text / video / audio)
     │        trained checkpoint on network volume
     │
     ▼
-[Aggregator + Translator]  →  10 capability group scores (70% cortical + 30% subcortical)
+[Aggregator + Translator]  →  10 capability group scores (per-group evidence-weighted blend)
     │
     ▼
 [3D Glass Brain Viewer]  →  26,866 vertex combined mesh

@@ -76,17 +76,47 @@ def _run_subcortical(text: str, sc_predictor, sc_atlas, sc_aggregator, mesh_meta
         return None
 
 
+# Per-group evidence weights (lazy-loaded from subcortical_cognitive_map.json)
+_evidence_weights: dict[int, float] | None = None
+
+
+def _get_evidence_weights() -> dict[int, float]:
+    """Load per-group evidence weights from the subcortical cognitive map."""
+    global _evidence_weights
+    if _evidence_weights is None:
+        import json
+        from pathlib import Path
+        map_path = Path(__file__).resolve().parent.parent.parent / "data" / "subcortical_cognitive_map.json"
+        with open(map_path) as f:
+            data = json.load(f)
+        _evidence_weights = {g["id"]: g.get("evidence_weight", 0.0) for g in data["groups"]}
+        logger.info("Loaded subcortical evidence weights: %s", _evidence_weights)
+    return _evidence_weights
+
+
 def _merge_group_scores(cortical_groups: list, subcortical_group_scores: dict | None) -> list:
-    """Blend subcortical group contributions into cortical group scores."""
+    """Blend subcortical group contributions into cortical group scores.
+
+    Uses per-group evidence weights (from cognitive map) scaled by the global
+    reliability discount (from config). Groups without subcortical mapping
+    are unaffected.
+    """
     if not subcortical_group_scores:
         return cortical_groups
 
-    # subcortical_group_scores: {group_id: z_score}
+    from htb_brain.config import settings
+    evidence_weights = _get_evidence_weights()
+    reliability = settings.subcortical_reliability
+
     for gs in cortical_groups:
-        sc_contrib = subcortical_group_scores.get(gs["id"], 0.0)
-        if sc_contrib != 0.0:
-            # Weighted blend: 70% cortical + 30% subcortical
-            gs["score"] = gs["score"] * 0.7 + sc_contrib * 0.3
+        gid = gs["id"]
+        if gid not in subcortical_group_scores:
+            continue
+        sc_contrib = subcortical_group_scores[gid]
+        ew = evidence_weights.get(gid, 0.0)
+        beta = ew * reliability
+        if beta > 0:
+            gs["score"] = gs["score"] * (1 - beta) + sc_contrib * beta
             gs["z_score"] = gs["score"]
 
     # Re-rank

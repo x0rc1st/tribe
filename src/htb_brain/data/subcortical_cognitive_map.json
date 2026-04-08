@@ -1,46 +1,53 @@
 {
-  "description": "Maps subcortical structures (Harvard-Oxford atlas) to the 10 HTB capability groups. Each region is assigned to the group whose combined cortical+subcortical circuit best aligns with the structure's role in learning and cognition.",
+  "description": "Maps subcortical structures (Harvard-Oxford atlas) to the 10 HTB capability groups. Each region is assigned to the group whose combined cortical+subcortical circuit best aligns with the structure's role in learning and cognition. evidence_weight reflects neuroscience evidence strength adjusted for fMRI signal quality; it is scaled by subcortical_reliability (config.py) to produce the effective blend weight.",
   "groups": [
     {
       "id": 1,
       "name": "Strategic Thinking & Decision-Making",
       "subcortical_regions": ["Caudate"],
+      "evidence_weight": 0.25,
       "rationale": "The caudate nucleus drives goal-directed behavior and feedback-based learning — each outcome refines the next strategic choice through reward prediction error signals."
     },
     {
       "id": 2,
       "name": "Procedural Fluency & Muscle Memory",
       "subcortical_regions": ["Putamen", "Pallidum"],
+      "evidence_weight": 0.30,
       "rationale": "The putamen encodes procedural/habit learning and motor sequence automation. The pallidum gates motor output, selecting which learned routines to execute. Together they convert conscious practice into unconscious skill."
     },
     {
       "id": 3,
       "name": "Technical Comprehension & Language Processing",
       "subcortical_regions": ["Thalamus"],
+      "evidence_weight": 0.10,
       "rationale": "The thalamus (pulvinar and ventrolateral nuclei) relays and synchronizes cortico-thalamic language circuits, ensuring the right information reaches the right cortical area during complex comprehension."
     },
     {
       "id": 5,
       "name": "Situational Awareness & Focus",
       "subcortical_regions": ["Thalamus"],
+      "evidence_weight": 0.10,
       "rationale": "The thalamic reticular nucleus and pulvinar form the brain's attentional gateway — filtering, gating, and routing sensory information to sustain focus and maintain situational awareness."
     },
     {
       "id": 6,
       "name": "Motivation & Adaptive Drive",
       "subcortical_regions": ["Accumbens"],
+      "evidence_weight": 0.30,
       "rationale": "The nucleus accumbens is the brain's reward engine — its dopaminergic signals encode whether content is worth the effort, driving engagement, persistence, and the motivational state that sustains learning through difficulty."
     },
     {
       "id": 7,
       "name": "Memory Encoding & Knowledge Retention",
       "subcortical_regions": ["Hippocampus"],
+      "evidence_weight": 0.45,
       "rationale": "The hippocampus is the brain's memory writer — binding context, time, and content into durable episodic traces. High hippocampal engagement predicts content that will be retained long-term."
     },
     {
       "id": 9,
       "name": "Threat Awareness & Emotional Encoding",
       "subcortical_regions": ["Amygdala"],
+      "evidence_weight": 0.25,
       "rationale": "The amygdala tags experiences with emotional significance — fear, urgency, excitement — which dramatically enhances memory consolidation. Content that triggers this circuit is remembered far longer than emotionally neutral material."
     }
   ],
