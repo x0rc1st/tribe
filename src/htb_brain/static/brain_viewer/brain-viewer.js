@@ -112,8 +112,8 @@ void main() {
         alpha += vHighlight * 0.2;
     }
 
-    // Emissive boost for bloom
-    float emissive = isSC ? 1.0 + a * 2.0 : 1.0 + a * 1.5;
+    // Emissive boost for bloom (subtle — let color differentiation show through)
+    float emissive = isSC ? 1.0 + a * 0.6 : 1.0 + a * 0.4;
     color *= emissive;
 
     if (alpha < 0.005) discard;
@@ -329,9 +329,9 @@ class BrainViewer extends HTMLElement {
 
         const bloom = new UnrealBloomPass(
             new THREE.Vector2(w, h),
-            1.5,   // strength
-            0.4,   // radius
-            0.85   // threshold
+            0.6,   // strength (was 1.5 — reduced to preserve region contrast)
+            0.3,   // radius (tighter bloom spread)
+            0.92   // threshold (only brightest areas bloom)
         );
         this._composer.addPass(bloom);
 
