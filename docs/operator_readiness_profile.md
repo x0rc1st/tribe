@@ -600,7 +600,7 @@ def detect_dimensions(group_scores: dict, subcortical: dict) -> dict:
 ```
 OperatorProfile {
     operator_id: string
-    learning_path: string
+    learning_path: string  // determines CONTENT, not readiness target — all paths require all 6 dims
 
     dimensions: {
         procedural_automaticity: DimensionScore
@@ -694,7 +694,7 @@ The intended use is **batch preprocessing of the HTB content library**, not real
    - **Lab modules:** predict BOTH the text writeup AND a screen recording of the lab execution. Text captures Dims 3-5 (cognitive). Video captures Dim 1 (procedural). Merge profiles.
    - **Video content:** direct video → TRIBE prediction (TRIBE's strongest modality)
 2. **Tag each module** — store its 6-dimension profile alongside existing metadata
-3. **Define per-role requirements** — "SOC Analyst L2 needs all 6 dimensions. Pen Tester needs heavy Dims 1+4+5"
+3. **Universal readiness target** — all 6 dimensions must be covered for every operator regardless of role. A pen tester and a SOC analyst need different CONTENT but the same COGNITIVE CAPABILITIES. The learning path differs by role, the readiness target does not. (Same principle as aviation: a Cessna pilot and a Boeing pilot need the same cognitive dimensions — different checklists, same brain requirements.)
 4. **For each learner on a path, compute gaps** — compare completed modules' dimension profiles against role requirements
 5. **Serve recommendations instantly** — dimension profiles are precomputed properties of content, not per-learner predictions
 
