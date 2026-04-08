@@ -150,6 +150,7 @@ class BrainViewer extends HTMLElement {
         this._groupData = [];           // array of {id, name, operator_frame, score}
         this._groupIndexAttr = null;    // per-vertex group index
         this._hoveredGroup = -1;
+        this._selectedGroup = -1;
 
         this._ready = false;
         this._disposed = false;
@@ -580,18 +581,18 @@ class BrainViewer extends HTMLElement {
             if (this._selectedGroup === this._hoveredGroup) {
                 this.clearSelection();
                 this._tooltip.hideDetail();
-                this.dispatchEvent(new CustomEvent('group-selected', { detail: { groupId: -1 } }));
+                this.dispatchEvent(new CustomEvent('group-selected', { bubbles: true, composed: true, detail: { groupId: -1 } }));
             } else {
                 this.selectGroup(this._hoveredGroup);
                 const group = this._groupData.find(g => g.id === this._hoveredGroup);
                 if (group) this._tooltip.showDetail(group);
-                this.dispatchEvent(new CustomEvent('group-selected', { detail: { groupId: this._hoveredGroup } }));
+                this.dispatchEvent(new CustomEvent('group-selected', { bubbles: true, composed: true, detail: { groupId: this._hoveredGroup } }));
             }
         } else {
             // Clicked empty space — clear selection
             this.clearSelection();
             this._tooltip.hideDetail();
-            this.dispatchEvent(new CustomEvent('group-selected', { detail: { groupId: -1 } }));
+            this.dispatchEvent(new CustomEvent('group-selected', { bubbles: true, composed: true, detail: { groupId: -1 } }));
         }
     }
 
@@ -599,7 +600,11 @@ class BrainViewer extends HTMLElement {
         if (!this._ready || !this._glowMesh) return;
 
         this._raycaster.setFromCamera(this._mouse, this._camera);
-        const intersects = this._raycaster.intersectObject(this._glowMesh, false);
+        // Try glow mesh first, fall back to glass mesh for more reliable hits
+        let intersects = this._raycaster.intersectObject(this._glowMesh, false);
+        if (intersects.length === 0 && this._glassMesh) {
+            intersects = this._raycaster.intersectObject(this._glassMesh, false);
+        }
 
         if (intersects.length > 0) {
             const face = intersects[0].face;
