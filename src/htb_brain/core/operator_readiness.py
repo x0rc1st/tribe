@@ -4,9 +4,13 @@ Maps TRIBE v2 brain engagement predictions (10 cortical groups + 7 subcortical
 structures) to 6 operator readiness dimensions, each grounded in established
 neuroscience and Rasmussen's SRK framework.
 
-Readiness is computed as accumulated signal strength with diminishing returns,
-following the power law of practice (Newell & Rosenbloom 1981). Each module's
-engagement adds signal; readiness saturates asymptotically toward 1.0.
+Scoring model:
+  1. Per module: strength = weighted sum of positive group z-scores
+  2. Per operator: readiness = 1 - exp(-sum(strengths) / tau)
+
+No binary gates, no thresholds in strength calculation. Every positive
+signal contributes proportionally. Readiness accumulates with diminishing
+returns (power law of practice, Newell & Rosenbloom 1981).
 
 See docs/operator_readiness_profile.md for the full design document.
 """
@@ -16,18 +20,10 @@ from __future__ import annotations
 import math
 
 # ---------------------------------------------------------------------------
-# Thresholds
-# ---------------------------------------------------------------------------
-
-STRONG = 1.0
-MODERATE = 0.2   # z > 0.2 ~ 58th percentile — above-average engagement
-BASELINE = -0.3
-
-# ---------------------------------------------------------------------------
 # Readiness accumulation
 # ---------------------------------------------------------------------------
 
-TAU = 2.5  # saturation rate — controls how quickly readiness builds
+TAU = 2.5  # saturation rate
 
 READINESS_LEVELS = [
     (0.70, "ready"),       # sustained strong engagement
@@ -43,16 +39,15 @@ def compute_readiness(strengths: list[float]) -> float:
     """Compute readiness from accumulated per-module strength values.
 
     Uses exponential saturation: readiness = 1 - exp(-raw_signal / tau).
-    Each module contributes max(0, strength) — only positive engagement
-    counts. Diminishing returns model neural pathway consolidation.
+    Diminishing returns model neural pathway consolidation.
 
-    At tau=2.5:
-      1 strong module (z=1.0)  → 33% readiness (developing)
-      3 strong modules         → 70% readiness (ready)
-      5 strong modules         → 86% readiness (ready)
-      Weak modules (z=0.2)     → need ~5 to reach developing
+    At tau=2.5 with strength ~0.5 per module:
+      1 module   → 18% (developing)
+      3 modules  → 45% (proficient)
+      5 modules  → 63% (proficient)
+      8 modules  → 80% (ready)
     """
-    raw_signal = sum(max(0.0, s) for s in strengths)
+    raw_signal = sum(strengths)  # strengths are already non-negative
     return 1.0 - math.exp(-raw_signal / TAU)
 
 
@@ -65,187 +60,130 @@ def readiness_level(readiness: float) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Dimension detection (per-module)
+# Dimension signal weights
+#
+# Each dimension defines which cortical groups contribute and at what weight.
+# Anchor group gets 0.6, supporting groups split the remaining 0.4.
+# Weights are derived from the neuroscience mapping in the design doc.
 # ---------------------------------------------------------------------------
+
+DIM_WEIGHTS: dict[str, dict[int, float]] = {
+    # Anchor: G2 (sensorimotor). No cortical supporting groups.
+    "procedural_automaticity": {2: 1.0},
+
+    # Anchor: G9 (insular/threat). No cortical supporting groups.
+    "threat_detection": {9: 1.0},
+
+    # Anchor: G5 (dorsal parietal attention). Supports: G3 (comprehension), G8 (integration).
+    # Maps to Endsley's 3 SA levels: perception(G5), comprehension(G3), projection(G8).
+    "situational_awareness": {5: 0.5, 3: 0.25, 8: 0.25},
+
+    # Anchor: G1 (prefrontal executive). Supports: G10 (reflective/DMN).
+    # Maps to Klein's NDM: decide(G1) + reflect(G10).
+    "strategic_decision": {1: 0.6, 10: 0.4},
+
+    # Anchor: G8 (inferior parietal synthesis). Supports: G7 (memory encoding).
+    # Maps to Klein's RPD: integrate(G8) + bind(G7).
+    "analytical_synthesis": {8: 0.6, 7: 0.4},
+
+    # Stress resilience is computed separately (co-activation).
+}
+
+# SRK mode labels (informational, from Rasmussen's framework)
+DIM_SRK = {
+    "procedural_automaticity": "skill-based",
+    "threat_detection": "cross-mode",
+    "situational_awareness": "rule-based",
+    "strategic_decision": "knowledge-based",
+    "analytical_synthesis": "rule-based",
+    "stress_resilience": "all-modes-degraded",
+}
+
+
+# ---------------------------------------------------------------------------
+# Dimension scoring (per module)
+# ---------------------------------------------------------------------------
+
+
+def _weighted_strength(weights: dict[int, float], g: dict[int, float]) -> float:
+    """Weighted sum of positive group z-scores."""
+    return sum(w * max(0.0, g.get(gid, 0.0)) for gid, w in weights.items())
 
 
 def detect_dimensions(
     group_scores: dict[int, float],
     subcortical: dict[str, dict],
 ) -> dict[str, dict]:
-    """Detect which operator readiness dimensions a piece of content engages.
+    """Compute per-dimension strength for a single module.
 
-    Pure prediction-driven: takes TRIBE outputs, returns per-dimension signal.
-    The `strength` field reflects the best available signal for how strongly
-    this module engaged each dimension's neural circuits.
+    Strength = weighted sum of positive cortical z-scores.
+    No binary gates or thresholds — every positive signal contributes
+    proportionally to the dimension's weight map.
 
     Args:
         group_scores: {group_id: z_score} for groups 1-10.
         subcortical: {structure_name: {"z_score": float, "engaged": bool}}.
 
     Returns:
-        {dimension_key: {
-            "strength": float,  -- best signal for this dimension
-            "srk_mode": str,
-            "details": dict,
-        }}
+        {dimension_key: {"strength": float, "srk_mode": str, "details": dict}}
     """
     g = group_scores
     sc = subcortical
-
     dimensions: dict[str, dict] = {}
 
-    # Subcortical direct paths: when a deep brain structure fires at z >= 1.0,
-    # it independently contributes strong signal. The structure IS the circuit.
-    def _sc_strong(name: str) -> bool:
-        s = sc.get(name, {})
-        return s.get("engaged", False) and s.get("z_score", -1) >= STRONG
+    # Standard dimensions: weighted positive signals
+    for dim_key, weights in DIM_WEIGHTS.items():
+        strength = _weighted_strength(weights, g)
 
-    putamen_or_pallidum = _sc_strong("Putamen") or _sc_strong("Pallidum")
-    amygdala_strong = _sc_strong("Amygdala")
-    hippo_strong = _sc_strong("Hippocampus")
-    amygdala_z = sc.get("Amygdala", {}).get("z_score", 0.0)
-    hippo_z = sc.get("Hippocampus", {}).get("z_score", 0.0)
+        details: dict = {}
+        for gid, w in weights.items():
+            details["g%d" % gid] = g.get(gid, 0.0)
+            details["g%d_weight" % gid] = w
+            details["g%d_contribution" % gid] = round(w * max(0.0, g.get(gid, 0.0)), 4)
 
-    # 1. Procedural Automaticity (Skill-based)
-    g2_val = g.get(2, -1.0)
-    g2_ok = g2_val >= MODERATE
-    dimensions["procedural_automaticity"] = {
-        "strength": g2_val,
-        "srk_mode": "skill-based",
-        "details": {
-            "cortical_motor": g2_val,
-            "putamen": sc.get("Putamen", {}).get("z_score", 0.0),
-            "pallidum": sc.get("Pallidum", {}).get("z_score", 0.0),
-            "subcortical_confirmed": putamen_or_pallidum,
-        },
-    }
+        # Add relevant subcortical info
+        if dim_key == "procedural_automaticity":
+            details["putamen"] = sc.get("Putamen", {}).get("z_score", 0.0)
+            details["pallidum"] = sc.get("Pallidum", {}).get("z_score", 0.0)
+        elif dim_key == "threat_detection":
+            details["amygdala"] = sc.get("Amygdala", {}).get("z_score", 0.0)
+        elif dim_key == "situational_awareness":
+            details["thalamus"] = sc.get("Thalamus", {}).get("z_score", 0.0)
+        elif dim_key == "strategic_decision":
+            details["caudate"] = sc.get("Caudate", {}).get("z_score", 0.0)
+        elif dim_key == "analytical_synthesis":
+            details["hippocampus"] = sc.get("Hippocampus", {}).get("z_score", 0.0)
 
-    # 2. Threat Detection & Calibration (Cross-mode)
-    # Subcortical (amygdala) determines engagement, cortical (G9) determines strength.
-    g9_val = g.get(9, -1.0)
-    g9_ok = g9_val >= MODERATE
-    dimensions["threat_detection"] = {
-        "strength": g9_val,
-        "srk_mode": "cross-mode",
-        "details": {
-            "cortical_threat": g9_val,
-            "amygdala": amygdala_z,
-            "amygdala_direct": amygdala_strong,
-            "motivation": g.get(6, 0.0),
-        },
-    }
+        dimensions[dim_key] = {
+            "strength": round(strength, 4),
+            "srk_mode": DIM_SRK[dim_key],
+            "details": details,
+        }
 
-    # 3. Situational Awareness (Rule + Knowledge)
-    # Strength reflects all contributing signals, not just the anchor.
-    # When comprehension + integration compensate for modest attention,
-    # the SA signal is the mean of all three circuits.
-    g5_val = g.get(5, -1.0)
-    g3_val = g.get(3, -1.0)
-    g8_val = g.get(8, -1.0)
-    g5_ok = g5_val >= MODERATE
-    g3_baseline = g3_val >= BASELINE
-    g8_baseline = g8_val >= BASELINE
-    g3_mod = g3_val >= MODERATE
-    g8_mod = g8_val >= MODERATE
-    g5_baseline = g5_val >= BASELINE
-    sa_primary = g5_ok and g3_baseline and g8_baseline
-    sa_compensated = g5_baseline and g3_mod and g8_mod
+    # Stress Resilience: co-activation of cognitive + threat.
+    # Strength = min(cognitive_peak, threat) — limited by the weaker side.
+    # Both must be positive for any contribution.
+    cognitive = max(
+        max(0.0, g.get(1, 0.0)),
+        max(0.0, g.get(5, 0.0)),
+        max(0.0, g.get(8, 0.0)),
+    )
+    threat = max(0.0, g.get(9, 0.0))
+    stress_strength = min(cognitive, threat)
 
-    if sa_compensated and not sa_primary:
-        sa_strength = (g5_val + g3_val + g8_val) / 3.0
-    else:
-        sa_strength = g5_val
-
-    dimensions["situational_awareness"] = {
-        "strength": sa_strength,
-        "srk_mode": "rule-based",
-        "details": {
-            "attention_focus": g5_val,
-            "comprehension": g3_val,
-            "integration": g8_val,
-            "thalamus": sc.get("Thalamus", {}).get("z_score", 0.0),
-            "compensated": sa_compensated and not sa_primary,
-        },
-    }
-
-    # 4. Strategic Decision-Making & Reflection (Knowledge-based)
-    # Primary: G1 (executive) >= MODERATE, G10 (reflection) >= BASELINE.
-    # Compensated: G1 >= BASELINE, G10 >= MODERATE — strong reflection
-    # compensates for modest executive function signal.
-    g1_val = g.get(1, -1.0)
-    g10_val = g.get(10, -1.0)
-    g1_ok = g1_val >= MODERATE
-    g10_baseline = g10_val >= BASELINE
-    g1_baseline = g1_val >= BASELINE
-    g10_mod = g10_val >= MODERATE
-    sd_primary = g1_ok and g10_baseline
-    sd_compensated = g1_baseline and g10_mod
-
-    if sd_compensated and not sd_primary:
-        sd_strength = (g1_val + g10_val) / 2.0
-    else:
-        sd_strength = g1_val
-
-    dimensions["strategic_decision"] = {
-        "strength": sd_strength,
-        "srk_mode": "knowledge-based",
-        "details": {
-            "executive_function": g1_val,
-            "reflection": g10_val,
-            "caudate_feedback": sc.get("Caudate", {}).get("z_score", 0.0),
-            "compensated": sd_compensated and not sd_primary,
-        },
-    }
-
-    # 5. Analytical Synthesis & Pattern Matching (Knowledge + Rule)
-    # Primary: G8 (synthesis) >= MODERATE, G7 (memory) >= BASELINE.
-    # Compensated: G8 >= BASELINE, G7 >= MODERATE — strong memory encoding
-    # compensates for modest synthesis signal.
-    # Subcortical (hippocampus) determines additional engagement.
-    g8_ok = g8_val >= MODERATE
-    g7_val = g.get(7, -1.0)
-    g7_ok = g7_val >= BASELINE
-    g8_baseline = g8_val >= BASELINE
-    g7_mod = g7_val >= MODERATE
-    as_primary = g8_ok and g7_ok
-    as_compensated = g8_baseline and g7_mod
-    is_adaptive = (g8_ok or hippo_strong) and g1_val >= MODERATE
-
-    if as_compensated and not as_primary:
-        as_strength = (g8_val + g7_val) / 2.0
-    else:
-        as_strength = g8_val
-
-    dimensions["analytical_synthesis"] = {
-        "strength": as_strength,
-        "srk_mode": "knowledge-based" if is_adaptive else "rule-based",
-        "details": {
-            "synthesis": g8_val,
-            "memory_encoding": g7_val,
-            "hippocampus": hippo_z,
-            "hippocampus_direct": hippo_strong,
-            "adaptive": is_adaptive,
-            "compensated": as_compensated and not as_primary,
-        },
-    }
-
-    # 6. Stress Resilience (All modes under degradation)
-    # Strength = min of cognitive and threat CORTICAL peaks.
-    # Amygdala determines engagement, but strength comes from cortical signals.
-    cognitive_ok = (g1_val >= MODERATE or g5_val >= MODERATE or g8_val >= MODERATE)
-    threat_ok = g9_val >= MODERATE or amygdala_strong
-    cognitive_peak = max(g1_val, g5_val, g8_val)
-    co_active = cognitive_ok and threat_ok
-    stress_strength = min(cognitive_peak, g9_val)
     dimensions["stress_resilience"] = {
-        "strength": stress_strength,
-        "srk_mode": "all-modes-degraded",
+        "strength": round(stress_strength, 4),
+        "srk_mode": DIM_SRK["stress_resilience"],
         "details": {
-            "cognitive_peak": cognitive_peak,
-            "threat_activation": g9_val,
-            "amygdala_direct": amygdala_strong,
-            "co_activation": co_active,
+            "cognitive_peak": round(cognitive, 4),
+            "cognitive_source": {
+                "g1": g.get(1, 0.0),
+                "g5": g.get(5, 0.0),
+                "g8": g.get(8, 0.0),
+            },
+            "threat": round(threat, 4),
+            "g9": g.get(9, 0.0),
+            "amygdala": sc.get("Amygdala", {}).get("z_score", 0.0),
         },
     }
 
@@ -377,7 +315,6 @@ def detect_gaps(
         if rdns >= GAP_THRESHOLD:
             continue
 
-        # Check which prerequisite dimensions are also gaps (blocked_by)
         blocked_by: list[str] = []
         for prereq in DEPENDENCY_ORDER.get(dim_key, []):
             if dimension_readiness.get(prereq, 0.0) < GAP_THRESHOLD:
@@ -394,7 +331,6 @@ def detect_gaps(
             "message": config["message"],
         })
 
-    # Sort: unblocked first, then by severity
     severity_rank = {"critical": 0, "moderate": 1, "minor": 2}
     gaps.sort(key=lambda g: (len(g["blocked_by"]) > 0, severity_rank.get(g["severity"], 9)))
 
