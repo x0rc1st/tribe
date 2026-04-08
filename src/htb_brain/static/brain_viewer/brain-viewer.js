@@ -368,7 +368,7 @@ class BrainViewer extends HTMLElement {
 
         // Events
         this._renderer.domElement.addEventListener('mousemove', (e) => this._onMouseMove(e));
-        this._renderer.domElement.addEventListener('click', (e) => this._onClick(e));
+        this._renderer.domElement.addEventListener('click', (e) => this._onClick(e), false);
         this._renderer.domElement.addEventListener('mouseleave', () => this._onMouseLeave());
 
         // Resize observer
@@ -575,7 +575,13 @@ class BrainViewer extends HTMLElement {
         this._hoveredGroup = -1;
     }
 
-    _onClick() {
+    _onClick(event) {
+        // Update mouse position and raycast fresh on click
+        const rect = this._renderer.domElement.getBoundingClientRect();
+        this._mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        this._mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        this._doRaycast();
+
         if (this._hoveredGroup >= 0) {
             // Toggle: click same group again to deselect
             if (this._selectedGroup === this._hoveredGroup) {

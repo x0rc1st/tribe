@@ -1092,15 +1092,15 @@
                 </li>
             `;
         }).join('');
-
-        // Click handler for region isolation
-        regionList.querySelectorAll('.region-item[data-group-id]').forEach(li => {
-            li.addEventListener('click', () => {
-                const gid = parseInt(li.dataset.groupId);
-                toggleRegionSelection(gid);
-            });
-        });
     }
+
+    // Event delegation on regionList — survives innerHTML changes
+    regionList.addEventListener('click', (e) => {
+        const li = e.target.closest('.region-item[data-group-id]');
+        if (!li) return;
+        const gid = parseInt(li.dataset.groupId);
+        toggleRegionSelection(gid);
+    });
 
     function toggleRegionSelection(groupId) {
         if (selectedRegionId === groupId) {
