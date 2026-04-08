@@ -91,18 +91,30 @@ def detect_dimensions(
     }
 
     # 3. Situational Awareness (Rule + Knowledge)
-    g5_ok = g.get(5, -1) >= MODERATE
-    g3_ok = g.get(3, -1) >= BASELINE
-    g8_baseline = g.get(8, -1) >= BASELINE
+    # Primary: G5 (attention) >= MODERATE with G3 and G8 at baseline.
+    # Alt: G5 at baseline + BOTH G3 and G8 >= MODERATE — strong comprehension
+    # and integration compensate for modest attentional gating signal.
+    g5_val = g.get(5, -1)
+    g3_val = g.get(3, -1)
+    g8_val = g.get(8, -1)
+    g5_ok = g5_val >= MODERATE
+    g3_baseline = g3_val >= BASELINE
+    g8_baseline = g8_val >= BASELINE
+    g3_mod = g3_val >= MODERATE
+    g8_mod = g8_val >= MODERATE
+    g5_baseline = g5_val >= BASELINE
+    sa_primary = g5_ok and g3_baseline and g8_baseline
+    sa_compensated = g5_baseline and g3_mod and g8_mod
     dimensions["situational_awareness"] = {
-        "covered": g5_ok and g3_ok and g8_baseline,
-        "strength": g.get(5, 0.0),
+        "covered": sa_primary or sa_compensated,
+        "strength": g5_val,
         "srk_mode": "rule-based",
         "details": {
-            "attention_focus": g.get(5, 0.0),
-            "comprehension": g.get(3, 0.0),
-            "integration": g.get(8, 0.0),
+            "attention_focus": g5_val,
+            "comprehension": g3_val,
+            "integration": g8_val,
             "thalamus": sc.get("Thalamus", {}).get("z_score", 0.0),
+            "compensated": sa_compensated and not sa_primary,
         },
     }
 
