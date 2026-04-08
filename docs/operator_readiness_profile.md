@@ -178,7 +178,13 @@ Started with 8 candidate dimensions. Dropped 2 after auditing which produce uniq
 **Cortical-only fallback:** Group 2 >= Strong (when subcortical data unavailable or unreliable)
 **Content that triggers it:** Timed CTF labs, repetitive tool drills, speed runs, muscle-memory exercises
 
-**Important limitation for text input:** TRIBE converts text to speech and predicts brain engagement for LISTENING to that text. Reading or hearing a description of a procedure does not activate motor circuits the same way as performing the procedure. This means text-based modules will almost never trigger Dimension 1 — and that is CORRECT. Text content does not build procedural automaticity. Only hands-on practice does. HTB should not interpret "zero Dim 1 coverage" on text modules as a deficiency — it's the expected result. Video content showing someone executing procedures may partially trigger Dimension 1 through motor observation circuits.
+**Text input nuance:** TRIBE converts text to speech and predicts brain engagement for LISTENING to that text. Different text types produce different Dim 1 signals:
+- **Conceptual/declarative text** ("nmap is a network scanner that..."): Very low Dim 1. Engages comprehension, not motor circuits. Expected and correct.
+- **Procedural/instructional text** ("run `nmap -sV 10.10.10.5`, then check for..."): Low-Moderate Dim 1. Sequential action descriptions partially activate motor planning (premotor cortex) and mental rehearsal circuits — the brain simulates the action sequence while reading. This is the Fitts & Posner cognitive stage: acquiring procedural knowledge before it can be automated.
+- **Video of procedure execution**: Moderate Dim 1. Motor observation circuits (mirror neuron system) activate when watching someone perform actions.
+- **Actually performing the procedure**: High Dim 1 (cannot be measured by TRIBE — outside content prediction scope).
+
+A lab writeup is a necessary precursor to procedural automaticity (you need procedural knowledge before you can automate it), but it's not sufficient. TRIBE correctly assigns lab writeups a lower Dim 1 score than hands-on execution would produce. HTB should interpret low Dim 1 on text modules as "this content teaches procedural knowledge but doesn't build muscle memory — pair with hands-on practice."
 
 **Cross-domain:** Aviation simulator hours. Surgical knot-tying drills. Military weapons handling drills.
 
