@@ -51,28 +51,22 @@ export function activationToColor(value) {
  * @returns {{r: number, g: number, b: number, hex: string}}
  */
 export function getGroupColor(groupId) {
-    // HTB-themed palette — manually curated neon/dark colors
-    const palette = [
-        '#9FEF00', // neon green
-        '#2EE7B6', // cyan
-        '#FF6B6B', // coral red
-        '#A855F7', // purple
-        '#F59E0B', // amber
-        '#3B82F6', // blue
-        '#EC4899', // pink
-        '#14B8A6', // teal
-        '#F97316', // orange
-        '#8B5CF6', // violet
-        '#06B6D4', // sky cyan
-        '#EF4444', // red
-        '#22D3EE', // light cyan
-        '#FBBF24', // yellow
-        '#34D399', // emerald
-        '#C084FC', // light purple
-    ];
+    // Must match getGroupColor() in brain-viewer.js fragment shader exactly
+    const byId = {
+        1:  '#00BFFF', // Strategic Thinking — bright blue
+        2:  '#9EF000', // Procedural Fluency — lime green
+        3:  '#FF9900', // Technical Comprehension — orange
+        4:  '#D900FF', // Visual Processing — purple
+        5:  '#FFFF00', // Situational Awareness — yellow
+        6:  '#FF334D', // Motivation & Adaptive Drive — red
+        7:  '#00FF99', // Memory Encoding — mint
+        8:  '#2EE8B5', // Knowledge Synthesis — cyan
+        9:  '#FF66B3', // Threat Awareness — pink
+        10: '#99CCFF', // Deep Internalization — ice blue
+    };
 
     const id = typeof groupId === 'string' ? hashString(groupId) : groupId;
-    const hex = palette[Math.abs(id) % palette.length];
+    const hex = byId[id] || '#4D4D4D';
 
     const bigint = parseInt(hex.slice(1), 16);
     return {

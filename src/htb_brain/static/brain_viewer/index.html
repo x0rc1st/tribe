@@ -497,6 +497,15 @@
             opacity: 0.35;
         }
 
+        .region-item.region-item--sc {
+            cursor: default;
+        }
+
+        .region-item.region-item--sc:hover {
+            border-color: transparent;
+            background: var(--bg-card);
+        }
+
         .region-dot {
             width: 8px;
             height: 8px;
@@ -991,7 +1000,7 @@
         const html = sorted.map(r => {
             const engaged = r.engaged ? 'Strong' : (r.z_score > 0 ? 'Moderate' : 'Low');
             const color = r.engaged ? '#9FEF00' : '#4a5568';
-            return `<li class="region-item">
+            return `<li class="region-item region-item--sc">
                 <span class="region-dot" style="background:${color}"></span>
                 <span class="region-name">${r.name}</span>
                 <span class="region-score" title="z=${r.z_score.toFixed(2)}">${engaged}</span>
@@ -1095,9 +1104,10 @@
     }
 
     // Event delegation on regionList — survives innerHTML changes
+    // Only cortical items (with data-group-id, without --sc) are clickable
     regionList.addEventListener('click', (e) => {
         const li = e.target.closest('.region-item[data-group-id]');
-        if (!li) return;
+        if (!li || li.classList.contains('region-item--sc')) return;
         const gid = parseInt(li.dataset.groupId);
         toggleRegionSelection(gid);
     });
