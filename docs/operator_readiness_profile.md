@@ -169,7 +169,7 @@ Started with 8 candidate dimensions. Dropped 2 after auditing which produce uniq
 - Associative stage: refining, fewer errors (Groups 1 and 2 co-active, transitioning)
 - Autonomous stage: fast, automatic, resistant to interference (Group 2 + Putamen/Pallidum dominant, prefrontal quiet)
 
-**SRK error type:** Slips — correct procedure, wrong execution. Operator knows what to do but mis-executes under pressure.
+**SRK error type:** Slips (wrong action) and lapses (forgotten step) — the operator knows the procedure but mis-executes or skips steps under pressure or distraction.
 
 **Why it matters.** The single biggest predictor of operator failure under stress. If a procedure hasn't migrated from caudate to putamen, the operator freezes when prefrontal function degrades.
 
@@ -206,7 +206,7 @@ A lab writeup is a necessary precursor to procedural automaticity (you need proc
 
 **The neural mechanism.** The amygdala tags experiences with emotional significance, enhancing hippocampal memory consolidation. Performance follows the Yerkes-Dodson inverted-U: moderate arousal (optimal catecholamine levels) maximizes performance. Under-arousal: threats missed. Over-arousal: tunnel vision, false positives, burnout. The nucleus accumbens (Group 6) sustains motivational drive during long monitoring periods between events.
 
-**SRK error type:** Misclassification — either failing to detect a real threat (skill-based: habituated too much) or over-classifying benign signals as threats (rule-based: wrong discrimination rule).
+**SRK error type:** Rule-based mistake manifesting as misclassification — either failing to detect a real threat (habituated discrimination rule is too permissive) or over-classifying benign signals as threats (discrimination rule is too sensitive). Can also involve skill-based slips when routine threat checks are automated.
 
 **Unique anchor:** Group 9 + Amygdala
 **Detection rule:** Group 9 >= Moderate AND Amygdala engaged
@@ -261,7 +261,7 @@ A lab writeup is a necessary precursor to procedural automaticity (you need proc
 
 **The neural mechanism.** Prefrontal cortex (Group 1): executive function, working memory, planning, value-based decisions. Caudate: feedback-based learning through reward prediction error. Default mode network / posterior cingulate (Group 10): reflective processing — reviewing past decisions, extracting generalizable lessons.
 
-**SRK error type:** Knowledge-based mistake — wrong mental model, reasoning from incorrect first principles. Also: failure to reflect (Rasmussen's "mode transition failure" — the operator doesn't step back from rule-based to knowledge-based when the situation demands it).
+**SRK error type:** Knowledge-based mistake — wrong mental model, reasoning from incorrect first principles. Also: mode transition failure (our extension, not Rasmussen's original taxonomy) — the operator doesn't step back from rule-based to knowledge-based when the situation demands analytical reasoning rather than pattern-matching.
 
 **Note on metacognition:** Absorbs the reflective/metacognitive component. TRIBE detects whether content engages reflective circuits (Group 10). Actual self-monitoring behavior requires behavioral measurement.
 
@@ -318,7 +318,7 @@ A lab writeup is a necessary precursor to procedural automaticity (you need proc
 
 **The neural mechanism.** Under acute stress, high levels of norepinephrine and dopamine engage alpha-1 adrenergic and D1 dopamine receptors, opening potassium channels that weaken prefrontal network connectivity. Working memory, planning, and flexible thinking degrade. The amygdala takes over, driving reactive responses. Glucocorticoids (cortisol) exacerbate this effect. Stress inoculation training pushes the Yerkes-Dodson peak rightward — the operator maintains cognitive function at stress levels that would degrade an untrained person.
 
-**SRK error type:** Stress-induced regression — the operator drops from knowledge-based to rule-based, or from rule-based to skill-based, applying simpler but less appropriate cognitive strategies. This is Rasmussen's most dangerous failure: the operator THINKS they're still reasoning but has actually regressed to pattern-matching or automatic responses.
+**SRK error type:** Stress-induced regression (our extension synthesizing Rasmussen + Arnsten) — under acute stress, the operator drops from knowledge-based to rule-based, or from rule-based to skill-based, applying simpler but less appropriate cognitive strategies. This is the most dangerous failure pattern in the SRK framework: the operator THINKS they're still reasoning but has actually regressed to pattern-matching or automatic responses.
 
 **Why co-activation matters.** Content must engage cognitive circuits AND threat circuits simultaneously. Cognitive-only = classroom (not stress training). Threat-only = just alarming (not training). The combination is the training stimulus for stress inoculation.
 
@@ -532,7 +532,7 @@ def detect_dimensions(group_scores: dict, subcortical: dict) -> dict:
     hippo_engaged = sc.get("Hippocampus", {}).get("engaged", False)
     is_adaptive = g8_ok and g.get(1, -1) >= MODERATE
     dimensions["analytical_synthesis"] = {
-        "covered": g8_ok and (g7_ok and hippo_engaged or g7_mod),
+        "covered": g8_ok and ((g7_ok and hippo_engaged) or g7_mod),
         "strength": g.get(8, 0),
         "srk_mode": "knowledge-based" if is_adaptive else "rule-based",
         "details": {
