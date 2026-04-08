@@ -27,6 +27,17 @@ class BrainPredictor:
             cache_folder=self.cache_dir,
             device=self.device,
         )
+
+        # Increase text embedding batch_size for faster inference on high-VRAM GPUs.
+        # Default is 4; 16 gives ~4x speedup on RTX 5090 (32GB).
+        # batch_size is excluded from cache UID so this doesn't invalidate cached results.
+        try:
+            old_bs = self.model.data.text_feature.batch_size
+            self.model.data.text_feature.batch_size = 16
+            logger.info("Text embedding batch_size: %d -> 16", old_bs)
+        except Exception:
+            logger.debug("Could not override text_feature batch_size")
+
         logger.info("TRIBE v2 loaded successfully.")
 
     def predict_text(self, text: str) -> tuple[np.ndarray, list]:
