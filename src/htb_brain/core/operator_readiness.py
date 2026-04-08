@@ -170,26 +170,55 @@ def detect_dimensions(
     }
 
     # 4. Strategic Decision-Making & Reflection (Knowledge-based)
+    # Primary: G1 (executive) >= MODERATE, G10 (reflection) >= BASELINE.
+    # Compensated: G1 >= BASELINE, G10 >= MODERATE — strong reflection
+    # compensates for modest executive function signal.
     g1_val = g.get(1, -1.0)
     g10_val = g.get(10, -1.0)
+    g1_ok = g1_val >= MODERATE
+    g10_baseline = g10_val >= BASELINE
+    g1_baseline = g1_val >= BASELINE
+    g10_mod = g10_val >= MODERATE
+    sd_primary = g1_ok and g10_baseline
+    sd_compensated = g1_baseline and g10_mod
+
+    if sd_compensated and not sd_primary:
+        sd_strength = (g1_val + g10_val) / 2.0
+    else:
+        sd_strength = g1_val
+
     dimensions["strategic_decision"] = {
-        "strength": g1_val,
+        "strength": sd_strength,
         "srk_mode": "knowledge-based",
         "details": {
             "executive_function": g1_val,
             "reflection": g10_val,
             "caudate_feedback": sc.get("Caudate", {}).get("z_score", 0.0),
+            "compensated": sd_compensated and not sd_primary,
         },
     }
 
     # 5. Analytical Synthesis & Pattern Matching (Knowledge + Rule)
-    # Subcortical (hippocampus) determines engagement, cortical (G8) determines strength.
+    # Primary: G8 (synthesis) >= MODERATE, G7 (memory) >= BASELINE.
+    # Compensated: G8 >= BASELINE, G7 >= MODERATE — strong memory encoding
+    # compensates for modest synthesis signal.
+    # Subcortical (hippocampus) determines additional engagement.
     g8_ok = g8_val >= MODERATE
     g7_val = g.get(7, -1.0)
     g7_ok = g7_val >= BASELINE
+    g8_baseline = g8_val >= BASELINE
+    g7_mod = g7_val >= MODERATE
+    as_primary = g8_ok and g7_ok
+    as_compensated = g8_baseline and g7_mod
     is_adaptive = (g8_ok or hippo_strong) and g1_val >= MODERATE
+
+    if as_compensated and not as_primary:
+        as_strength = (g8_val + g7_val) / 2.0
+    else:
+        as_strength = g8_val
+
     dimensions["analytical_synthesis"] = {
-        "strength": g8_val,
+        "strength": as_strength,
         "srk_mode": "knowledge-based" if is_adaptive else "rule-based",
         "details": {
             "synthesis": g8_val,
@@ -197,6 +226,7 @@ def detect_dimensions(
             "hippocampus": hippo_z,
             "hippocampus_direct": hippo_strong,
             "adaptive": is_adaptive,
+            "compensated": as_compensated and not as_primary,
         },
     }
 
