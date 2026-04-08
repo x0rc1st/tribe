@@ -4,17 +4,19 @@ Maps TRIBE v2 brain engagement predictions (10 cortical groups + 7 subcortical
 structures) to 6 operator readiness dimensions, each grounded in established
 neuroscience and Rasmussen's SRK framework.
 
+Detection is driven purely by prediction outputs — no modality awareness.
+
 See docs/operator_readiness_profile.md for the full design document.
 """
 
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# Thresholds (Section 6.1 of the design doc)
+# Thresholds
 # ---------------------------------------------------------------------------
 
 STRONG = 1.0
-MODERATE = 0.3
+MODERATE = 0.2   # z > 0.2 ≈ 58th percentile — above-average engagement
 BASELINE = -0.3
 
 # ---------------------------------------------------------------------------
@@ -27,6 +29,9 @@ def detect_dimensions(
     subcortical: dict[str, dict],
 ) -> dict[str, dict]:
     """Detect which operator readiness dimensions a piece of content covers.
+
+    Pure prediction-driven: takes TRIBE outputs, returns dimension coverage.
+    No modality awareness — the model's predictions are the signal.
 
     Args:
         group_scores: {group_id: z_score} for groups 1-10.
@@ -45,25 +50,19 @@ def detect_dimensions(
 
     dimensions: dict[str, dict] = {}
 
-    # -- Subcortical helpers (strong = engaged AND z >= 1.0) --
-    # The subcortical model (r=0.12) is too weak to serve as a binary gate.
-    # Instead: cortical MODERATE alone triggers coverage; subcortical boosts
-    # strength. When a subcortical structure shows z >= 1.0 (very confident),
-    # it can independently trigger the dimension even if cortical is below
-    # MODERATE — the structure IS the circuit, not a proxy.
+    # Subcortical direct paths: when a deep brain structure fires at z >= 1.0,
+    # it independently triggers the dimension. The structure IS the circuit.
     def _sc_strong(name: str) -> bool:
-        """True if subcortical structure is engaged AND z >= STRONG."""
         s = sc.get(name, {})
         return s.get("engaged", False) and s.get("z_score", -1) >= STRONG
 
     putamen_or_pallidum = _sc_strong("Putamen") or _sc_strong("Pallidum")
     amygdala_strong = _sc_strong("Amygdala")
     hippo_strong = _sc_strong("Hippocampus")
+    amygdala_z = sc.get("Amygdala", {}).get("z_score", 0.0)
+    hippo_z = sc.get("Hippocampus", {}).get("z_score", 0.0)
 
     # 1. Procedural Automaticity (Skill-based)
-    # Cortical motor (G2) >= MODERATE is sufficient — text predicting motor
-    # planning (Fitts cognitive stage) is a valid procedural signal.
-    # Subcortical (Putamen/Pallidum) boosts strength, doesn't gate.
     g2_ok = g.get(2, -1) >= MODERATE
     dimensions["procedural_automaticity"] = {
         "covered": g2_ok or putamen_or_pallidum,
@@ -78,12 +77,7 @@ def detect_dimensions(
     }
 
     # 2. Threat Detection & Calibration (Cross-mode)
-    # Primary: cortical threat (G9) >= MODERATE.
-    # Alt: Amygdala strongly engaged (z >= 1.0) — the amygdala IS the threat
-    # circuit, not a proxy. When it fires strongly, threat processing is real
-    # even if cortical G9 (insular cortex) is below threshold.
     g9_ok = g.get(9, -1) >= MODERATE
-    amygdala_z = sc.get("Amygdala", {}).get("z_score", 0.0)
     dimensions["threat_detection"] = {
         "covered": g9_ok or amygdala_strong,
         "strength": max(g.get(9, 0.0), amygdala_z) if amygdala_strong else g.get(9, 0.0),
@@ -127,13 +121,8 @@ def detect_dimensions(
     }
 
     # 5. Analytical Synthesis & Pattern Matching (Knowledge + Rule)
-    # Primary: G8 >= MODERATE AND G7 >= BASELINE (cortical path).
-    # Alt: Hippocampus strongly engaged AND G7 >= BASELINE — the hippocampus
-    # IS the memory binding circuit for synthesis. When it fires at z >= 1.0,
-    # synthesis is happening even if cortical G8 is below MODERATE.
     g8_ok = g.get(8, -1) >= MODERATE
     g7_ok = g.get(7, -1) >= BASELINE
-    hippo_z = sc.get("Hippocampus", {}).get("z_score", 0.0)
     is_adaptive = (g8_ok or hippo_strong) and g.get(1, -1) >= MODERATE
     dimensions["analytical_synthesis"] = {
         "covered": (g8_ok and g7_ok) or (hippo_strong and g7_ok),
@@ -149,8 +138,6 @@ def detect_dimensions(
     }
 
     # 6. Stress Resilience (All modes under degradation)
-    # Co-activation of cognitive + threat circuits. Includes subcortical
-    # direct paths: amygdala-strong counts as threat activation.
     cognitive_ok = (
         g.get(1, -1) >= MODERATE
         or g.get(5, -1) >= MODERATE

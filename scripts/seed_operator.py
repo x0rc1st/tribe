@@ -1,4 +1,4 @@
-"""Seed operator analyst-001 with real prediction data + video-equivalent modules."""
+"""Seed operator analyst-001 with prediction data."""
 
 import json
 import urllib.request as ur
@@ -38,7 +38,7 @@ print("Recording modules for analyst-001...")
 print()
 
 # Module 1: Nmap intro text — real TRIBE prediction data
-record("analyst-001", "htb-nmap-101", "Intro to Nmap Scanning (text)", [
+record("analyst-001", "htb-nmap-101", "Intro to Nmap Scanning", [
     {"id": 1, "z_score": -0.40}, {"id": 2, "z_score": 0.27},
     {"id": 3, "z_score": 0.15}, {"id": 4, "z_score": -0.05},
     {"id": 5, "z_score": 0.22}, {"id": 6, "z_score": 0.31},
@@ -52,7 +52,7 @@ record("analyst-001", "htb-nmap-101", "Intro to Nmap Scanning (text)", [
 
 # Module 2: SOC incident text — real TRIBE prediction data
 record("analyst-001", "htb-soc-incident-01",
-       "SOC Incident: DNS C2 + Lateral Movement (text)", [
+       "SOC Incident: DNS C2 + Lateral Movement", [
     {"id": 1, "z_score": -0.332}, {"id": 2, "z_score": 0.450},
     {"id": 3, "z_score": 1.096}, {"id": 4, "z_score": -0.310},
     {"id": 5, "z_score": 0.121}, {"id": 6, "z_score": -0.223},
@@ -70,7 +70,7 @@ record("analyst-001", "htb-soc-incident-01",
 
 # Module 3: SOC Dashboard Monitoring video — strong SA + synthesis
 record("analyst-001", "htb-soc-dashboard-vid",
-       "SOC Dashboard Monitoring (video)", [
+       "SOC Dashboard Monitoring", [
     {"id": 1, "z_score": 0.42}, {"id": 2, "z_score": 0.35},
     {"id": 3, "z_score": 0.88}, {"id": 4, "z_score": 0.15},
     {"id": 5, "z_score": 0.72}, {"id": 6, "z_score": 0.38},
@@ -85,7 +85,7 @@ record("analyst-001", "htb-soc-dashboard-vid",
 
 # Module 4: Timed CTF speedrun video — procedural + threat
 record("analyst-001", "htb-ctf-speedrun-vid",
-       "Timed CTF Speedrun (video)", [
+       "Timed CTF Speedrun", [
     {"id": 1, "z_score": 0.55}, {"id": 2, "z_score": 1.12},
     {"id": 3, "z_score": 0.61}, {"id": 4, "z_score": 0.08},
     {"id": 5, "z_score": 0.48}, {"id": 6, "z_score": 0.72},
@@ -102,7 +102,7 @@ record("analyst-001", "htb-ctf-speedrun-vid",
 
 # Module 5: Tabletop IR exercise video — strategic + analytical
 record("analyst-001", "htb-tabletop-ir-vid",
-       "Tabletop IR Exercise (video)", [
+       "Tabletop IR Exercise", [
     {"id": 1, "z_score": 0.88}, {"id": 2, "z_score": 0.22},
     {"id": 3, "z_score": 0.95}, {"id": 4, "z_score": 0.31},
     {"id": 5, "z_score": 0.61}, {"id": 6, "z_score": 0.45},
