@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRIBE v2 - Skill Mastery & ORI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="mastery.css">
+</head>
+<body>
+
+<div class="app">
+    <!-- Header -->
+    <header class="header">
+        <div class="header-logo">TRIBE<span>v2</span></div>
+        <div class="header-sub">Skill Mastery & Operator Readiness</div>
+        <div class="header-spacer"></div>
+        <a href="/static/brain_viewer/index.html" class="header-link">Brain Viewer</a>
+        <a href="/static/operator_readiness/index.html" class="header-link">Dimensions</a>
+    </header>
+
+    <!-- Operator selector -->
+    <section class="controls">
+        <div class="control-group">
+            <label class="control-label">Operator ID</label>
+            <div class="control-row">
+                <input type="text" id="operatorId" class="control-input" placeholder="e.g. analyst-001" value="demo-operator" />
+                <button id="loadBtn" class="btn btn-primary">Load</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ORI Score Card -->
+    <section class="ori-section">
+        <div class="card ori-card">
+            <div class="ori-score-wrap">
+                <div class="ori-score" id="oriScore">--</div>
+                <div class="ori-label">ORI Score</div>
+            </div>
+            <div class="ori-details">
+                <div class="ori-clearance" id="oriClearance">--</div>
+                <div class="ori-grade" id="oriGrade"></div>
+                <div class="ori-factors" id="oriFactors"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Content Classifier -->
+    <section class="card classifier-card">
+        <h2 class="card-title">Content Classifier</h2>
+        <p class="card-desc">Paste content to classify its completion type from brain predictions.</p>
+        <div class="classifier-form">
+            <textarea id="contentText" class="control-textarea" rows="4" placeholder="Paste module/lab/CTF content here..."></textarea>
+            <div class="classifier-bottom">
+                <div class="classifier-skills">
+                    <label class="control-label">Skill Tags (comma-separated)</label>
+                    <input type="text" id="skillTags" class="control-input" placeholder="e.g. nmap, reconnaissance" />
+                </div>
+                <div class="classifier-course">
+                    <label class="control-label">Course ID</label>
+                    <input type="text" id="courseId" class="control-input" placeholder="e.g. nmap-101" />
+                </div>
+                <button id="classifyBtn" class="btn btn-primary">Predict & Classify</button>
+            </div>
+        </div>
+        <!-- Result -->
+        <div id="classifyResult" class="classify-result" style="display:none">
+            <div class="classify-type-wrap">
+                <div class="classify-type" id="classifyType"></div>
+                <div class="classify-points" id="classifyPoints"></div>
+            </div>
+            <div class="classify-regions" id="classifyRegions"></div>
+            <button id="recordBtn" class="btn btn-accent" style="display:none">Record Completion</button>
+            <div id="recordStatus" class="record-status"></div>
+        </div>
+    </section>
+
+    <!-- Skills Dashboard -->
+    <section class="card skills-card">
+        <h2 class="card-title">Skill Mastery</h2>
+        <div id="skillsList" class="skills-list">
+            <div class="empty-sub">No skills recorded yet. Classify and record content above.</div>
+        </div>
+    </section>
+
+    <!-- Completion History -->
+    <section class="card history-card">
+        <h2 class="card-title">Completion History</h2>
+        <div id="historyList" class="history-list">
+            <div class="empty-sub">No completions yet.</div>
+        </div>
+    </section>
+</div>
+
+<script src="mastery.js"></script>
+</body>
+</html>

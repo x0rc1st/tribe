@@ -106,6 +106,14 @@ async def lifespan(app: FastAPI):
     app.state.profile_store = ProfileStore(profile_db)
     logger.info("ProfileStore ready at %s", profile_db)
 
+    # --- Initialize Mastery Store (Algorithm v3.2 + ORI) ---
+    from htb_brain.core.mastery_store import MasteryStore
+
+    mastery_db = _ProfilePath(settings.model_cache_dir).parent / "data" / "mastery.db"
+    mastery_db.parent.mkdir(parents=True, exist_ok=True)
+    app.state.mastery_store = MasteryStore(mastery_db)
+    logger.info("MasteryStore ready at %s", mastery_db)
+
     yield  # Application runs
 
     # Cleanup (if needed in future)
@@ -141,12 +149,14 @@ def create_app() -> FastAPI:
     from htb_brain.api.routes.health import router as health_router
     from htb_brain.api.routes.aggregate import router as aggregate_router
     from htb_brain.api.routes.profile import router as profile_router
+    from htb_brain.api.routes.mastery import router as mastery_router
 
     app.include_router(predict_router)
     app.include_router(video_router)
     app.include_router(health_router)
     app.include_router(aggregate_router)
     app.include_router(profile_router)
+    app.include_router(mastery_router)
 
     # --- Root redirect ---
     @app.get("/", include_in_schema=False)
