@@ -150,6 +150,7 @@ def create_app() -> FastAPI:
     from htb_brain.api.routes.aggregate import router as aggregate_router
     from htb_brain.api.routes.profile import router as profile_router
     from htb_brain.api.routes.mastery import router as mastery_router
+    from htb_brain.api.routes.classify import router as classify_router
 
     app.include_router(predict_router)
     app.include_router(video_router)
@@ -157,6 +158,7 @@ def create_app() -> FastAPI:
     app.include_router(aggregate_router)
     app.include_router(profile_router)
     app.include_router(mastery_router)
+    app.include_router(classify_router)
 
     # --- Root redirect ---
     @app.get("/", include_in_schema=False)
