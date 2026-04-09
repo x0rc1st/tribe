@@ -20,6 +20,7 @@ from htb_brain.core.aggregator import Aggregator
 from htb_brain.core.atlas import BrainAtlas
 from htb_brain.core.predictor import BrainPredictor
 from htb_brain.core.translator import Translator
+from htb_brain.core.completion_classifier import classify_completion
 from htb_brain.core.operator_readiness import detect_dimensions, extract_readiness_inputs
 from htb_brain.visualization.summary import generate_summary
 
@@ -255,6 +256,9 @@ def _run_pipeline(
             **dim_data,
         }
 
+    # --- Brain-derived completion type (Algorithm v3.2 integration) ---
+    completion_type = classify_completion(gs_dict)
+
     return {
         "vertex_activations": cortical_acts,
         "vertex_groups": vertex_groups,
@@ -266,6 +270,7 @@ def _run_pipeline(
         "n_cortical_vertices": 20484,
         "n_subcortical_vertices": n_subcortical,
         "operator_readiness": operator_readiness,
+        "completion_type": completion_type,
     }
 
 

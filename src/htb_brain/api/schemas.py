@@ -101,6 +101,15 @@ class PredictResponse(BaseModel):
         default=None,
         description="6-dimension operator readiness profile derived from brain engagement",
     )
+    completion_type: str = Field(
+        default="analytical",
+        description=(
+            "Brain-derived completion type for Algorithm v3.2: "
+            "'procedural' (G2 sensorimotor dominant), "
+            "'analytical' (G1/G5/G8 fronto-parietal dominant), or "
+            "'operational' (G9 threat + cognitive co-activation)"
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------
