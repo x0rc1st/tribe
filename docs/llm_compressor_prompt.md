@@ -10,7 +10,10 @@ the register diversity TRIBE reacts to. It enforces compression *within*
 registers rather than paraphrase *across* them.
 
 Substitute `{{TARGET_RATIO}}` with a string like `30%` and `{{MODULE_TEXT}}`
-with the source module body before sending. Default model: Claude Sonnet 4.6.
+with the source module body (markdown) before sending. The prompt assumes
+markdown input: it preserves structural elements that carry signal and strips
+TTS-hostile artifacts (bare URLs, image markup, YAML frontmatter, raw HTML).
+Default model: Claude Sonnet 4.6.
 
 ---
 
@@ -30,7 +33,7 @@ Compression removes redundancy within a register; it never paraphrases content f
 </principle>
 
 <target>
-Length: {{TARGET_RATIO}} of source (default 30%; range 20–40%).
+Length: {{TARGET_RATIO}} of source (typical range 20–40%).
 Priority: register mix > exact ratio. Overshoot the ratio before violating the principle or permitting any failure mode below.
 If the source is already dense (little redundancy, no filler, no boilerplate), allow compressed length to approach 100% of source. Forced compression below natural density is worse than no compression.
 </target>
@@ -69,6 +72,30 @@ The following must survive compression at source density:
 - Boilerplate: learning-objective lists, "by the end of this module…", section numbers and headers used only as scaffolding (but keep headers that carry semantic content).
 - Empty adverbs and passive constructions that add length without adding register.
 </drop>
+
+<markdown>
+Source and output are markdown. Preserve markdown that carries pedagogical or prosodic signal; strip markup that doesn't survive TTS cleanly.
+
+**Preserve structure (compress within, never flatten):**
+- Headers (`#`, `##`, `###`): keep those carrying semantic content at the source's heading level; drop purely-scaffold ones per <drop>.
+- Bulleted, numbered, and nested lists: preserve nesting depth; compress each item within its register.
+- Fenced code blocks and inline code: verbatim.
+- Tables and ASCII diagrams: verbatim unless a row is pure redundancy.
+- Blockquotes (`> …`): preserve — they carry cited or first-person register.
+- Emphasis (`**bold**`, `*italic*`): preserve as the source uses it.
+
+**Keep the content, drop the TTS-hostile markup:**
+- Inline links `[text](url)`: keep the anchor text, drop the URL. Bare URLs are unreadable by TTS and corrupt the register.
+- Reference-style links and their definition blocks: keep the anchor text inline, drop the definitions.
+- Images `![alt](url)`: drop the markup. If the alt text carries information the surrounding prose depends on, fold a short version into the prose; otherwise drop both.
+- Footnotes (`[^n]` markers + definitions): if the footnote is pedagogically load-bearing, inline a compressed version into the main text; otherwise drop marker and definition together.
+
+**Strip entirely:**
+- YAML frontmatter between `---` fences at the document top.
+- Horizontal rules (`---`, `***`) used as visual dividers.
+- Raw HTML tags (`<div>`, `<span>`, `<br>`, etc.) and HTML comments (`<!-- … -->`).
+- Auto-generated tables of contents.
+</markdown>
 
 <hard_constraints>
 - **Add nothing.** Only compress what is present. Never invent examples, stakes, framing, or content.
@@ -141,7 +168,7 @@ Source: "Credential Guard usually blocks LSASS dumping, but a kernel driver with
 </failure_modes>
 
 <self_check>
-Before emitting, verify by quoting directly from your output:
+Draft the compressed text first. Before finalizing, verify by locating and quoting the relevant spans from your draft:
 
 1. If the source had imperatives, reader-directed questions, or second-person "you" — quote one of each kind that was in the source.
 2. If the source had a concrete example with specific detail — quote one.
@@ -152,11 +179,11 @@ Before emitting, verify by quoting directly from your output:
 7. Confirm short sentences from the source remain short sentences (not merged via commas into compound sentences).
 8. Confirm the register sequence of your output matches the source's.
 
-If you cannot quote when the source had the feature, revise before emitting.
+If any check fails for a feature present in the source, revise the draft and re-run the check before finalizing.
 </self_check>
 
 <output_format>
-Your first output token is the first word of the compressed module. No preamble, no "Here is", no meta-commentary, no wrapper tags, no trailing notes. Match the source's paragraph structure and formatting: bullets stay bullets, numbered steps stay numbered, code blocks stay code blocks, tables stay tables, headers that carry semantic content stay.
+Your first emitted character is the first character of the compressed module (a markdown `#` if the source begins with a heading). No preamble, no "Here is", no blank lead-in, no meta-commentary, no wrapper tags, no trailing notes. Match the source's paragraph structure and formatting: bullets stay bullets, numbered steps stay numbered, code blocks stay code blocks, tables stay tables, headers that carry semantic content stay.
 </output_format>
 
 <source>
