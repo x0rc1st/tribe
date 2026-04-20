@@ -626,12 +626,13 @@
         </div>
 
         <div class="panel-section">
-            <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;">
+            <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">
                 <span>Top Regions</span>
-                <label id="neuroToggleWrap" style="display:none;font-size:10px;font-weight:400;color:#8896ab;cursor:pointer;gap:5px;align-items:center;" title="Toggle between current conservative subcortical blending (r=0.12 model) and neuroscience-balanced weights (equal model quality assumption)">
-                    <span id="neuroLabel">Conservative</span>
-                    <input type="checkbox" id="neuroToggle" style="accent-color:#2EE7B6;cursor:pointer;">
-                </label>
+                <div id="engineToggleWrap" style="display:none;gap:0;align-items:center;font-size:10px;font-weight:400;" title="Switch the prediction engine — Conservative and Neuroscience are TRIBE blends; Claude bypasses TRIBE and predicts from neuroscience priors.">
+                    <button type="button" class="engine-btn active" data-engine="conservative" style="padding:3px 8px;background:#2EE7B6;color:#0a0f1a;border:1px solid #2EE7B6;border-radius:3px 0 0 3px;cursor:pointer;font-size:10px;">Conservative</button>
+                    <button type="button" class="engine-btn" data-engine="neuroscience" style="padding:3px 8px;background:transparent;color:#8896ab;border:1px solid #2EE7B6;border-left:none;border-right:none;cursor:pointer;font-size:10px;">Neuroscience</button>
+                    <button type="button" class="engine-btn" data-engine="claude" style="padding:3px 8px;background:transparent;color:#8896ab;border:1px solid #2EE7B6;border-radius:0 3px 3px 0;cursor:pointer;font-size:10px;">Claude</button>
+                </div>
             </div>
             <ul class="region-list" id="regionList">
                 <li class="summary-empty">No data yet</li>
@@ -936,33 +937,148 @@
         }
     }
 
-    // ---- Neuroscience toggle state ----
-    let _currentGroups = null;
-    let _neuroGroups = null;
+    // ---- Engine toggle state (Conservative / Neuroscience / Claude) ----
+    // Conservative and Neuroscience are both TRIBE blends — the cortical
+    // activations are identical, only the group ranking differs. Claude is a
+    // full alternative prediction (different activations, different groups,
+    // different narrative) that is fetched on demand and cached per-text.
+    let _tribeResult = null;       // full /api/v1/predict response
+    let _claudeResult = null;      // full /api/v1/predict/claude response
+    let _claudeInFlight = false;
+    let _currentInputText = '';
+    let _currentEngine = 'conservative';
 
-    const neuroToggle = document.getElementById('neuroToggle');
-    const neuroLabel = document.getElementById('neuroLabel');
-    const neuroToggleWrap = document.getElementById('neuroToggleWrap');
+    const engineToggleWrap = document.getElementById('engineToggleWrap');
+    const engineButtons = engineToggleWrap.querySelectorAll('.engine-btn');
 
-    neuroToggle.addEventListener('change', function() {
-        const useNeuro = neuroToggle.checked;
-        neuroLabel.textContent = useNeuro ? 'Neuroscience' : 'Conservative';
-        neuroLabel.style.color = useNeuro ? '#2EE7B6' : '#8896ab';
-        const groups = useNeuro ? _neuroGroups : _currentGroups;
-        if (groups) {
-            renderRegionList(groups);
-            renderRadarChart(groups);
-        }
+    function setEngineButtonStyles() {
+        engineButtons.forEach(btn => {
+            const active = btn.dataset.engine === _currentEngine;
+            btn.classList.toggle('active', active);
+            btn.style.background = active ? '#2EE7B6' : 'transparent';
+            btn.style.color = active ? '#0a0f1a' : '#8896ab';
+        });
+    }
+
+    engineButtons.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const target = btn.dataset.engine;
+            if (target === _currentEngine) return;
+            await switchEngine(target);
+        });
     });
+
+    async function switchEngine(target) {
+        if (target === 'claude') {
+            if (_claudeResult) {
+                _currentEngine = 'claude';
+                setEngineButtonStyles();
+                renderResultToViewer(_claudeResult);
+                return;
+            }
+            if (_claudeInFlight) return;
+            if (!_currentInputText) {
+                showStatus('Submit text first, then switch to Claude.', 'error');
+                return;
+            }
+            _claudeInFlight = true;
+            showStatus('Querying Claude (first call ~15 s)...', 'info');
+            loadingOverlay.classList.remove('hidden');
+            try {
+                const result = await fetchClaudePrediction(_currentInputText);
+                _claudeResult = result;
+                _currentEngine = 'claude';
+                setEngineButtonStyles();
+                renderResultToViewer(result);
+                showStatus('Claude prediction complete.', 'info');
+            } catch (err) {
+                showStatus(`Claude error: ${err.message}`, 'error');
+            } finally {
+                _claudeInFlight = false;
+                loadingOverlay.classList.add('hidden');
+            }
+            return;
+        }
+
+        // Conservative / Neuroscience — both use TRIBE activations, swap only groups.
+        if (!_tribeResult) {
+            showStatus('Run a TRIBE prediction first.', 'error');
+            return;
+        }
+        _currentEngine = target;
+        setEngineButtonStyles();
+        if (_currentEngine === 'claude') return;  // handled above
+        // If we're leaving Claude, restore TRIBE activations + subcortical
+        renderResultToViewer(_tribeResult, target);
+    }
+
+    async function fetchClaudePrediction(text) {
+        const formData = new FormData();
+        formData.append('text', text);
+        const resp = await fetch('/api/v1/predict/claude', {
+            method: 'POST',
+            body: formData,
+        });
+        if (!resp.ok) {
+            const body = await resp.text();
+            throw new Error(`Claude endpoint ${resp.status}: ${body.slice(0, 200)}`);
+        }
+        const data = await resp.json();
+        if (data.vertex_activations) return data;  // cache hit
+        if (!data.job_id) throw new Error('Unexpected Claude response');
+        // Poll the same /api/v1/jobs endpoint used for TRIBE.
+        for (let i = 0; i < 120; i++) {
+            await new Promise(r => setTimeout(r, 2000));
+            const pollResp = await fetch(`/api/v1/jobs/${data.job_id}`);
+            if (!pollResp.ok) throw new Error(`Poll failed: ${pollResp.status}`);
+            const job = await pollResp.json();
+            if (job.status === 'complete') return job;
+            if (job.status === 'failed') throw new Error(job.error || 'Claude job failed');
+            showStatus(`Claude thinking... ${job.elapsed_seconds || i*2}s`, 'info');
+        }
+        throw new Error('Claude prediction timed out after 4 minutes');
+    }
+
+    function renderResultToViewer(result, engineOverride) {
+        // Resolve which group_scores variant to use.
+        // For Claude results, group_scores is Claude's own output and
+        // group_scores_neuroscience is the Claude-data re-blended with
+        // neuroscience weights — we still honor the selected engine mode.
+        const mode = engineOverride || _currentEngine;
+        const activeGroups = (mode === 'neuroscience' && result.group_scores_neuroscience)
+            ? result.group_scores_neuroscience
+            : result.group_scores;
+
+        const activations = result.vertex_activations || result.activations;
+        const summary = result.narrative_summary || result.summary;
+        const nCortical = result.n_cortical_vertices || 20484;
+        const nSubcortical = result.n_subcortical_vertices || 0;
+        const subcorticalRegions = result.subcortical_regions || [];
+        const vertexGroups = result.vertex_groups;
+
+        if (viewer) {
+            const applyData = () => {
+                if (nSubcortical > 0) viewer.setCorticalVertexCount(nCortical);
+                if (vertexGroups) viewer.setGroupIndices(vertexGroups);
+                if (activations) viewer.setActivations(new Float32Array(activations));
+            };
+            if (viewer._meshLoaded) applyData();
+            else viewer.addEventListener('mesh-loaded', applyData, { once: true });
+        }
+
+        if (activeGroups) {
+            if (viewer) viewer.setGroupData(activeGroups);
+            renderRegionList(activeGroups);
+            renderRadarChart(activeGroups);
+        }
+        if (subcorticalRegions.length > 0) renderSubcorticalRegions(subcorticalRegions);
+        if (summary) renderSummary(summary);
+    }
 
     // ---- Handle API result ----
     function handlePredictionResult(result, inputText) {
         // API returns: vertex_activations, group_scores, narrative_summary, engaged_regions
         // Plus subcortical: subcortical_regions, n_cortical_vertices, n_subcortical_vertices
-        const activations = result.vertex_activations || result.activations;
-        const groups = result.group_scores || result.groups;
-        const summary = result.narrative_summary || result.summary;
-        const nCortical = result.n_cortical_vertices || 20484;
         const nSubcortical = result.n_subcortical_vertices || 0;
         const subcorticalRegions = result.subcortical_regions || [];
 
@@ -976,49 +1092,20 @@
             createViewer(meshFile);
         }
 
-        const vertexGroups = result.vertex_groups;
+        // Store the TRIBE result and reset Claude state. New TRIBE prediction =
+        // the cached Claude result no longer corresponds to the current text.
+        _tribeResult = result;
+        _claudeResult = null;
+        _currentInputText = inputText || '';
+        _currentEngine = 'conservative';
 
-        if (viewer) {
-            const applyData = () => {
-                // Set cortical count before activations so isSubcortical is computed
-                if (nSubcortical > 0) {
-                    viewer.setCorticalVertexCount(nCortical);
-                }
-                if (vertexGroups) viewer.setGroupIndices(vertexGroups);
-                if (activations) viewer.setActivations(new Float32Array(activations));
-            };
-            if (viewer._meshLoaded) {
-                applyData();
-            } else {
-                viewer.addEventListener('mesh-loaded', applyData, { once: true });
-            }
-        }
+        // Show the 3-state engine toggle now that we have a baseline prediction.
+        engineToggleWrap.style.display = 'inline-flex';
+        setEngineButtonStyles();
 
-        if (groups) {
-            _currentGroups = groups;
-            _neuroGroups = result.group_scores_neuroscience || null;
+        renderResultToViewer(result, 'conservative');
 
-            // Show toggle if neuroscience scores are available
-            neuroToggleWrap.style.display = _neuroGroups ? 'flex' : 'none';
-            // Reset toggle to conservative on new prediction
-            neuroToggle.checked = false;
-            neuroLabel.textContent = 'Conservative';
-            neuroLabel.style.color = '#8896ab';
-
-            if (viewer) viewer.setGroupData(groups);
-            renderRegionList(groups);
-            renderRadarChart(groups);
-        }
-
-        // Render subcortical region list if present
-        if (subcorticalRegions.length > 0) {
-            renderSubcorticalRegions(subcorticalRegions);
-        }
-
-        if (summary) {
-            renderSummary(summary);
-        }
-
+        const nCortical = result.n_cortical_vertices || 20484;
         const statusMsg = nSubcortical > 0
             ? `Prediction complete. Cortical: ${nCortical} vertices + Subcortical: ${nSubcortical} vertices (${subcorticalRegions.length} structures)`
             : 'Prediction complete.';

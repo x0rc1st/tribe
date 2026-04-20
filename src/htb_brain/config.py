@@ -26,6 +26,12 @@ class Settings(BaseSettings):
             if default_meta.exists():
                 self.subcortical_mesh_meta = str(default_meta)
 
+        # Fall back to the standard ANTHROPIC_API_KEY env var if the HTB-prefixed
+        # one wasn't set — so users don't have to duplicate the key.
+        import os
+        if not self.anthropic_api_key:
+            self.anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+
     # Aggregation
     threshold_percentile: float = 75.0
     bilateral_collapse: bool = True
@@ -33,6 +39,20 @@ class Settings(BaseSettings):
     # Subcortical blending — scales per-group evidence weights from the cognitive map.
     # Increase as subcortical model improves (r=0.12 → 0.25; r=0.25 → 0.45; r=0.50 → 1.0).
     subcortical_reliability: float = 0.25
+
+    # Claude predictor (third prediction mode that bypasses TRIBE entirely).
+    # Set via HTB_BRAIN_ANTHROPIC_API_KEY or the standard ANTHROPIC_API_KEY env var.
+    anthropic_api_key: str = ""
+    claude_model: str = "claude-opus-4-7"
+    claude_max_tokens: int = 4096  # target JSON output size, not total
+    claude_batch_poll_seconds: int = 30
+
+    # Extended thinking — allocates internal reasoning tokens before Claude
+    # commits to the JSON output. Significantly improves register-feature
+    # analysis and peak-region selection, at the cost of extra output-rate
+    # tokens. Set to 0 to disable. Typical values: 4000 (fast), 8000
+    # (default, good quality), 16000 (maximum, slower + costlier).
+    claude_thinking_budget: int = 8000
 
     # API
     host: str = "0.0.0.0"
