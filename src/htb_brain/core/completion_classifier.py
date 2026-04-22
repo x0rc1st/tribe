@@ -5,7 +5,7 @@ from Algorithm v3.2 with a neuroscience-backed classification using the
 top activated cognitive groups from TRIBE v2 predictions.
 
 The triangulation is preserved:
-    Procedural (33) + Analytical (33) + Operational (34) = 100 per skill
+    Conceptual (33) + Procedural (33) + Operational (34) = 100 per skill
 
 Classification uses the 3 highest-scoring cognitive groups (by z-score)
 from a TRIBE v2 prediction to determine completion type:
@@ -13,7 +13,7 @@ from a TRIBE v2 prediction to determine completion type:
     Procedural  — G2 (sensorimotor) in top 3
                   Fitts & Posner cortico-striatal shift
 
-    Analytical  — G1/G5/G8 (fronto-parietal control network) dominant
+    Conceptual  — G1/G5/G8 (fronto-parietal control network) dominant
                   Klein NDM + Endsley SA
 
     Operational — G9 (threat) + G1/G5/G8 co-activation in top 3
@@ -28,13 +28,13 @@ from __future__ import annotations
 # Constants
 # ---------------------------------------------------------------------------
 
+POINTS_CONCEPTUAL = 33   # was POINTS_ADAPTIVE / POINTS_ANALYTICAL
 POINTS_PROCEDURAL = 33   # was POINTS_STRUCTURED
-POINTS_ANALYTICAL = 33   # was POINTS_ADAPTIVE
 POINTS_OPERATIONAL = 34  # unchanged
 
 POINTS = {
+    "conceptual": POINTS_CONCEPTUAL,
     "procedural": POINTS_PROCEDURAL,
-    "analytical": POINTS_ANALYTICAL,
     "operational": POINTS_OPERATIONAL,
 }
 
@@ -66,7 +66,7 @@ def classify_completion(group_z_scores: dict[int, float]) -> str:
         2. Procedural   — G2 (sensorimotor) in top 3
                           Motor circuit engagement = building automaticity
                           (Fitts & Posner 1967).
-        3. Analytical    — default (fronto-parietal network or any other pattern)
+        3. Conceptual   — default (fronto-parietal network or any other pattern)
                           Higher-order cognition without threat co-activation
                           (Klein NDM + Endsley SA).
 
@@ -74,7 +74,7 @@ def classify_completion(group_z_scores: dict[int, float]) -> str:
         group_z_scores: {group_id (1-10): z_score} from TRIBE v2 prediction.
 
     Returns:
-        One of ``'procedural'``, ``'analytical'``, or ``'operational'``.
+        One of ``'procedural'``, ``'conceptual'``, or ``'operational'``.
     """
     # Rank groups by z-score, keep only positive activations
     ranked = sorted(
@@ -97,11 +97,11 @@ def classify_completion(group_z_scores: dict[int, float]) -> str:
     if 2 in top:
         return "procedural"
 
-    # 3. Analytical: fronto-parietal control network or any remaining pattern.
+    # 3. Conceptual: fronto-parietal control network or any remaining pattern.
     #    Klein NDM + Endsley SA.  Also the correct default when top groups
     #    are G3 (language), G4 (visual), G6 (motivation), G7 (memory),
-    #    or G10 (reflective) — all represent conceptual/knowledge learning.
-    return "analytical"
+    #    or G10 (reflective) — all represent conceptual learning.
+    return "conceptual"
 
 
 def completion_points(completion_type: str) -> int:

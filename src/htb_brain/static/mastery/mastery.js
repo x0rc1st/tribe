@@ -17,11 +17,11 @@ const GROUP_NAMES = {
 
 const TYPE_COLORS = {
     procedural: "var(--procedural)",
-    analytical: "var(--analytical)",
+    conceptual: "var(--conceptual)",
     operational: "var(--operational)",
 };
 
-const TYPE_POINTS = { procedural: 33, analytical: 33, operational: 34 };
+const TYPE_POINTS = { conceptual: 33, procedural: 33, operational: 34 };
 
 const CLEARANCE_CLASSES = {
     full: "clearance-full",
@@ -129,7 +129,7 @@ function renderSkills(data) {
 
     el.innerHTML = data.skills.map(s => {
         const p = s.completed_types.includes("procedural") ? 1 : 0;
-        const a = s.completed_types.includes("analytical") ? 1 : 0;
+        const a = s.completed_types.includes("conceptual") ? 1 : 0;
         const o = s.completed_types.includes("operational") ? 1 : 0;
         const health = HEALTH_ICONS[s.health] || "";
         return `<div class="skill-row">
@@ -140,8 +140,8 @@ function renderSkills(data) {
                     <div class="skill-bar-track"><div class="skill-bar-fill procedural" style="width:${p*100}%"></div></div>
                 </div>
                 <div class="skill-bar-row">
-                    <div class="skill-bar-label">A</div>
-                    <div class="skill-bar-track"><div class="skill-bar-fill analytical" style="width:${a*100}%"></div></div>
+                    <div class="skill-bar-label">C</div>
+                    <div class="skill-bar-track"><div class="skill-bar-fill conceptual" style="width:${a*100}%"></div></div>
                 </div>
                 <div class="skill-bar-row">
                     <div class="skill-bar-label">O</div>
@@ -232,7 +232,7 @@ function showClassifyResult(pred) {
         const zs = g.z_score.toFixed(2);
         let tag = "";
         if (isTop3 && g.id === 2) tag = ' <span style="color:var(--procedural)">[PROCEDURAL marker]</span>';
-        if (isTop3 && [1,5,8].includes(g.id)) tag = ' <span style="color:var(--analytical)">[ANALYTICAL marker]</span>';
+        if (isTop3 && [1,5,8].includes(g.id)) tag = ' <span style="color:var(--conceptual)">[CONCEPTUAL marker]</span>';
         if (isTop3 && g.id === 9) tag = ' <span style="color:var(--operational)">[OPERATIONAL marker]</span>';
         return `<div style="opacity:${isTop3?1:0.5}">${marker} <strong>${label}</strong> z=${zs}${tag}</div>`;
     }).join("");

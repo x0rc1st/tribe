@@ -1,15 +1,15 @@
 """Tests for brain-derived completion classification.
 
 Verifies that classify_completion() correctly maps TRIBE v2 cognitive
-group z-scores to Algorithm v3.2 completion types (procedural,
-analytical, operational) using the top-3 brain region logic.
+group z-scores to Algorithm v3.2 completion types (conceptual,
+procedural, operational) using the top-3 brain region logic.
 """
 
 import pytest
 
 from htb_brain.core.completion_classifier import (
     COGNITIVE_GROUPS,
-    POINTS_ANALYTICAL,
+    POINTS_CONCEPTUAL,
     POINTS_OPERATIONAL,
     POINTS_PROCEDURAL,
     TOP_N,
@@ -63,54 +63,54 @@ class TestProcedural:
 
 
 # =====================================================================
-# Analytical classification (G1/G5/G8 dominant or default)
+# Conceptual classification (G1/G5/G8 dominant or default)
 # =====================================================================
 
-class TestAnalytical:
-    """G1/G5/G8 dominant or default → analytical."""
+class TestConceptual:
+    """G1/G5/G8 dominant or default → conceptual."""
 
     def test_g1_dominant(self):
-        """G1 (prefrontal executive) dominant → analytical."""
+        """G1 (prefrontal executive) dominant → conceptual."""
         scores = _scores(g1=2.0, g3=1.0, g7=0.5)
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
     def test_g5_dominant(self):
-        """G5 (dorsal parietal attention) dominant → analytical."""
+        """G5 (dorsal parietal attention) dominant → conceptual."""
         scores = _scores(g5=2.0, g3=1.0, g4=0.5)
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
     def test_g8_dominant(self):
-        """G8 (inferior parietal synthesis) dominant → analytical."""
+        """G8 (inferior parietal synthesis) dominant → conceptual."""
         scores = _scores(g8=2.0, g7=1.5, g3=1.0)
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
     def test_g1_g5_g8_all_in_top3(self):
-        """All three cognitive groups in top 3 → analytical (no threat)."""
+        """All three cognitive groups in top 3 → conceptual (no threat)."""
         scores = _scores(g1=1.5, g5=1.3, g8=1.1)
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
-    def test_non_marker_groups_default_to_analytical(self):
-        """Top 3 = {G3, G6, G7} (language, motivation, memory) → analytical.
+    def test_non_marker_groups_default_to_conceptual(self):
+        """Top 3 = {G3, G6, G7} (language, motivation, memory) → conceptual.
 
         These groups represent conceptual learning and default correctly.
         """
         scores = _scores(g3=2.0, g6=1.5, g7=1.0)
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
-    def test_g4_g10_g6_default_to_analytical(self):
-        """Top 3 = {G4, G10, G6} (visual, reflective, motivation) → analytical."""
+    def test_g4_g10_g6_default_to_conceptual(self):
+        """Top 3 = {G4, G10, G6} (visual, reflective, motivation) → conceptual."""
         scores = _scores(g4=1.8, g10=1.5, g6=1.2)
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
-    def test_all_zeros_returns_analytical(self):
-        """No positive activations → analytical (default)."""
+    def test_all_zeros_returns_conceptual(self):
+        """No positive activations → conceptual (default)."""
         scores = _scores()
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
-    def test_all_negative_returns_analytical(self):
-        """All negative z-scores → no positive activations → analytical."""
+    def test_all_negative_returns_conceptual(self):
+        """All negative z-scores → no positive activations → conceptual."""
         scores = {i: -0.5 for i in range(1, 11)}
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
 
 # =====================================================================
@@ -167,18 +167,18 @@ class TestEdgeCases:
         scores = _scores(g2=2.0, g9=1.5, g3=0.8)
         assert classify_completion(scores) == "procedural"
 
-    def test_g9_alone_without_cognitive_is_analytical(self):
-        """G9 in top 3 but no cognitive groups → analytical (default).
+    def test_g9_alone_without_cognitive_is_conceptual(self):
+        """G9 in top 3 but no cognitive groups → conceptual (default).
 
         Threat without cognition is anxiety, not operational performance.
         """
         scores = _scores(g9=2.0, g3=1.5, g7=1.0)
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
-    def test_g9_with_g6_g7_no_cognitive_is_analytical(self):
-        """G9 + G6 + G7 → analytical (G6 and G7 are not cognitive markers)."""
+    def test_g9_with_g6_g7_no_cognitive_is_conceptual(self):
+        """G9 + G6 + G7 → conceptual (G6 and G7 are not cognitive markers)."""
         scores = _scores(g9=2.0, g6=1.5, g7=1.0)
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
     def test_g9_at_rank4_is_not_operational(self):
         """G9 just outside top 3 → NOT operational.
@@ -188,7 +188,7 @@ class TestEdgeCases:
         """
         scores = _scores(g1=2.0, g5=1.8, g8=1.5, g9=1.0)
         # Top 3 = {G1, G5, G8}. G9 is 4th → no operational.
-        assert classify_completion(scores) == "analytical"
+        assert classify_completion(scores) == "conceptual"
 
     def test_partial_groups_dict(self):
         """Input with fewer than 10 groups still works."""
@@ -197,9 +197,9 @@ class TestEdgeCases:
 
     def test_single_group(self):
         """Only one group has a positive z-score."""
-        assert classify_completion({9: 1.0}) == "analytical"  # G9 alone, no cognitive
+        assert classify_completion({9: 1.0}) == "conceptual"  # G9 alone, no cognitive
         assert classify_completion({2: 1.0}) == "procedural"
-        assert classify_completion({1: 1.0}) == "analytical"
+        assert classify_completion({1: 1.0}) == "conceptual"
 
     def test_g2_g9_g1_all_high(self):
         """G2, G9, G1 all in top 3 → operational (G9+G1 co-activation wins).
@@ -220,18 +220,18 @@ class TestPoints:
     def test_procedural_points(self):
         assert POINTS_PROCEDURAL == 33
 
-    def test_analytical_points(self):
-        assert POINTS_ANALYTICAL == 33
+    def test_conceptual_points(self):
+        assert POINTS_CONCEPTUAL == 33
 
     def test_operational_points(self):
         assert POINTS_OPERATIONAL == 34
 
     def test_total_equals_100(self):
-        assert POINTS_PROCEDURAL + POINTS_ANALYTICAL + POINTS_OPERATIONAL == 100
+        assert POINTS_PROCEDURAL + POINTS_CONCEPTUAL + POINTS_OPERATIONAL == 100
 
     def test_completion_points_function(self):
         assert completion_points("procedural") == 33
-        assert completion_points("analytical") == 33
+        assert completion_points("conceptual") == 33
         assert completion_points("operational") == 34
 
     def test_cognitive_groups_are_1_5_8(self):

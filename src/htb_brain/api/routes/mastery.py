@@ -25,7 +25,7 @@ class RecordCompletionRequest(BaseModel):
     course_id: str = Field(..., description="Unique course/module identifier")
     completion_type: str = Field(
         ...,
-        description="Brain-derived type: 'procedural', 'analytical', or 'operational'",
+        description="Brain-derived type: 'conceptual', 'procedural', or 'operational'",
     )
     skill_tags: list[str] = Field(
         ..., description="Skill IDs this completion contributes to",
@@ -65,11 +65,11 @@ async def record_completion(operator_id: str, body: RecordCompletionRequest, req
     """
     store = _get_store(request)
 
-    if body.completion_type not in ("procedural", "analytical", "operational"):
+    if body.completion_type not in ("conceptual", "procedural", "operational"):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid completion_type '{body.completion_type}'. "
-                   f"Must be 'procedural', 'analytical', or 'operational'.",
+                   f"Must be 'conceptual', 'procedural', or 'operational'.",
         )
 
     gz = {int(k): v for k, v in body.group_z_scores.items()} if body.group_z_scores else {}

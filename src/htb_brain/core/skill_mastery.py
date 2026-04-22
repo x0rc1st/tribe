@@ -2,13 +2,13 @@
 
 Implements the full Algorithm v3.2 specification with one change:
 course types (Structured/Adaptive/Operational) are replaced by
-brain-derived types (Procedural/Analytical/Operational) classified
+brain-derived types (Conceptual/Procedural/Operational) classified
 from TRIBE v2 predictions.  All formulas, constants, and mechanics
 are identical to the original spec.
 
 Each skill reaches 100 points through three completion types:
-    Procedural  +33  (was Structured)
-    Analytical  +33  (was Adaptive)
+    Conceptual  +33  (was Structured/Adaptive)
+    Procedural  +33
     Operational +34
 
 Decay: 120-day grace period, then 1 point/week, floor at 20.
@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from htb_brain.core.completion_classifier import (
-    POINTS_ANALYTICAL,
+    POINTS_CONCEPTUAL,
     POINTS_OPERATIONAL,
     POINTS_PROCEDURAL,
 )
@@ -35,11 +35,11 @@ DECAY_RATE_PER_WEEK = 1
 DECAY_FLOOR = 20
 AT_RISK_THRESHOLD_DAYS = 7  # days before grace period ends
 
-COMPLETION_TYPES = ("procedural", "analytical", "operational")
+COMPLETION_TYPES = ("conceptual", "procedural", "operational")
 
 TYPE_POINTS: dict[str, int] = {
+    "conceptual": POINTS_CONCEPTUAL,
     "procedural": POINTS_PROCEDURAL,
-    "analytical": POINTS_ANALYTICAL,
     "operational": POINTS_OPERATIONAL,
 }
 
@@ -54,7 +54,7 @@ class Completion:
     """A single course/module completion record."""
 
     course_id: str
-    completion_type: str  # 'procedural' | 'analytical' | 'operational'
+    completion_type: str  # 'conceptual' | 'procedural' | 'operational'
     skill_tags: list[str]
     date: datetime
 
@@ -78,7 +78,7 @@ class SkillMastery:
     completed_types: set[str] = field(default_factory=set)
     total_completions: int = 0
     completions_by_type: dict[str, int] = field(
-        default_factory=lambda: {"procedural": 0, "analytical": 0, "operational": 0},
+        default_factory=lambda: {"conceptual": 0, "procedural": 0, "operational": 0},
     )
     last_activity: datetime | None = None
     stage: str = "not_started"
@@ -121,7 +121,7 @@ def calculate_skill_mastery(
     completed_types: set[str] = set()
     last_activity: datetime | None = None
     total_completions = 0
-    completions_by_type = {"procedural": 0, "analytical": 0, "operational": 0}
+    completions_by_type = {"conceptual": 0, "procedural": 0, "operational": 0}
 
     # Process completions
     for c in completions:

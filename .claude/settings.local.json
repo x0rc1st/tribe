@@ -8,7 +8,17 @@
       "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no c0sj5beetk02h3-64410d0c@ssh.runpod.io)",
       "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no -o ConnectTimeout=15 c0sj5beetk02h3-64410d0c@ssh.runpod.io)",
       "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no eur5nkiryiua3l-64410d0c@ssh.runpod.io)",
-      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no n0kmr8ziji9k8f-64410d0c@ssh.runpod.io)"
+      "Bash(ssh -tt -i ~/.ssh/tribe_runpod -o StrictHostKeyChecking=no n0kmr8ziji9k8f-64410d0c@ssh.runpod.io)",
+      "Bash(ssh-keygen:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(git remote:*)",
+      "Bash(ssh:*)",
+      "Bash(git revert:*)",
+      "Bash(PYTHONPATH=src python3 -m pytest tests/test_completion_classifier.py -v)",
+      "Bash(PYTHONPATH=src python3.12 -m pytest tests/test_completion_classifier.py -v)",
+      "Bash(pip3 install:*)"
     ]
   }
 }

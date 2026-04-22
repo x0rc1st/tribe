@@ -44,7 +44,7 @@ def _mock_z_scores(entity_id: str) -> dict[int, float]:
 
     Uses SHA-256 of the entity_id as a seed so the same ID always
     produces the same scores.  The distribution is shaped to produce
-    a realistic mix of procedural / analytical / operational outcomes.
+    a realistic mix of conceptual / procedural / operational outcomes.
     """
     digest = hashlib.sha256(entity_id.encode()).hexdigest()
     seed = int(digest[:16], 16)
@@ -83,7 +83,7 @@ def _build_response(entity_id: str) -> dict:
             if gid == 2:
                 marker = "PROCEDURAL"
             elif gid in COGNITIVE_GROUPS:
-                marker = "ANALYTICAL"
+                marker = "CONCEPTUAL"
             if gid == 9:
                 marker = "OPERATIONAL"
         groups.append({
@@ -137,7 +137,7 @@ async def classify_batch(body: BatchClassifyRequest):
     results = [_build_response(eid) for eid in body.entity_ids]
 
     # Summary counts
-    counts = {"procedural": 0, "analytical": 0, "operational": 0}
+    counts = {"conceptual": 0, "procedural": 0, "operational": 0}
     for r in results:
         counts[r["completion_type"]] += 1
 
