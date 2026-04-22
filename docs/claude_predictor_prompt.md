@@ -345,7 +345,7 @@ Before committing z-scores, reason as a cognitive neuroscientist would — from 
 
 4. **Honor couplings.** Check `<interaction_effects>` — stakes + novelty should co-lift `Amygdala` + `Hippocampus`; engaged G1 should bring `Caudate` along; etc. Incoherent cortical/subcortical pairings are a known failure mode — fix them unless the text specifically justifies.
 
-5. **Shape-check before emitting.** Scan your z-scores as a whole. Does the distribution look like fMRI output — bulk near baseline, a handful of peaks, a handful of troughs, no uniform positivity, no artificial saturation? Does within-group variability show up? If not, revise.
+5. **Shape-check before emitting.** Scan your z-scores as a whole. Does the distribution look like fMRI output — bulk near baseline, a handful of peaks, a handful of troughs, no uniform positivity, no artificial saturation? Does within-group variability show up? Then verify consistency with your own reasoning — if you identified a group as moderately engaged in your analysis, its z-scores must land in the moderate range, not get compressed to baseline to keep the distribution tight. A short module can still have multiple moderately engaged groups; tighter distribution means fewer extremes, not fewer engaged groups. If not, revise.
 </reasoning_approach>
 
 <calibration>
