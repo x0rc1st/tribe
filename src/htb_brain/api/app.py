@@ -29,21 +29,17 @@ async def lifespan(app: FastAPI):
         os.environ["HF_TOKEN"] = hf_token
         logger.info("HF_TOKEN set from environment / settings.")
 
-    # --- Load BrainPredictor (optional — requires tribev2 package) ---
-    app.state.predictor = None
-    try:
-        from htb_brain.core.predictor import BrainPredictor
+    # --- Load BrainPredictor ---
+    from htb_brain.core.predictor import BrainPredictor
 
-        predictor = BrainPredictor(
-            model_repo=settings.model_repo,
-            cache_dir=settings.model_cache_dir,
-            device=settings.device,
-        )
-        predictor.load()
-        app.state.predictor = predictor
-        logger.info("BrainPredictor ready.")
-    except Exception:
-        logger.warning("TRIBE v2 model not available — Claude-only mode.")
+    predictor = BrainPredictor(
+        model_repo=settings.model_repo,
+        cache_dir=settings.model_cache_dir,
+        device=settings.device,
+    )
+    predictor.load()
+    app.state.predictor = predictor
+    logger.info("BrainPredictor ready.")
 
     # --- Load BrainAtlas ---
     from htb_brain.core.atlas import BrainAtlas
