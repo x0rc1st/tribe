@@ -128,10 +128,9 @@ class ClaudePredictor:
             return {
                 "max_tokens": self.max_tokens + self.thinking_budget,
                 "thinking": {
-                    "type": "enabled",
+                    "type": "adaptive",
                     "budget_tokens": self.thinking_budget,
                 },
-                # Extended thinking requires temperature=1; leave top_p/top_k unset.
                 "temperature": 1.0,
             }
         return {"max_tokens": self.max_tokens}
