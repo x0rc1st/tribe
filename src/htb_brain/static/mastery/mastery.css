@@ -144,7 +144,7 @@ html, body {
 .record-status { font-family: var(--mono); font-size: 12px; color: var(--neon-green); margin-top: 8px; }
 
 .type-procedural { color: var(--procedural); }
-.type-conceptual { color: var(--analytical); }
+.type-conceptual { color: var(--conceptual); }
 .type-operational { color: var(--operational); }
 
 /* ---- Skills List ---- */
@@ -161,7 +161,7 @@ html, body {
 .skill-bar-track { flex: 1; height: 8px; background: var(--bg-dark); border-radius: 4px; overflow: hidden; }
 .skill-bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
 .skill-bar-fill.procedural { background: var(--procedural); }
-.skill-bar-fill.conceptual { background: var(--analytical); }
+.skill-bar-fill.conceptual { background: var(--conceptual); }
 .skill-bar-fill.operational { background: var(--operational); }
 .skill-score {
     font-family: var(--mono); font-size: 18px; font-weight: 700;
