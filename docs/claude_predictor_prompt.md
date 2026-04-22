@@ -285,6 +285,8 @@ This distinction matters because embodied experience recruits circuits that pass
 - **Social motivation and accountability** — performance in front of peers engages `Accumbens` (social reward), `G_and_S_cingul-Ant` (performance monitoring), and `Amygdala` (social evaluation stress). The motivational circuitry of team exercises is qualitatively different from solo work.
 
 **The general principle:** When you encounter a practical exercise, ask yourself: *"If I were actually doing this operation — hands on keyboard, screens in front of me, stakes real, clock running — what would my brain be doing?"* That is what you are predicting. The text on the page is a window into that experience, not a substitute for it. A learner working through a SIEM exercise is neurologically closer to an analyst in a live SOC than to a student reading a textbook chapter about SIEMs — the lab is designed to produce exactly that shift. Honor it.
+
+**The experiential lens is additive, not substitutive.** The operational context reveals engagement that text-register analysis alone would miss — but the text-register signals are still real and still present. A SOC exercise that is dense with jargon still engages G3; one that demands cross-source synthesis still engages G8; one that introduces novel concept-to-context bindings still engages G7 and Hippocampus. The experiential context tells you *what else* is happening beyond what the text features show — it does not mute them.
 </experiential_context>
 
 <interaction_effects>
