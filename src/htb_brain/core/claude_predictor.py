@@ -129,7 +129,6 @@ class ClaudePredictor:
                 "max_tokens": self.max_tokens + self.thinking_budget,
                 "thinking": {
                     "type": "adaptive",
-                    "budget_tokens": self.thinking_budget,
                 },
                 "temperature": 1.0,
             }
