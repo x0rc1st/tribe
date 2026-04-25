@@ -79,6 +79,8 @@ Ten capability groups span the whole cognitive-engagement space of cybersecurity
 <destrieux_regions>
 The Destrieux atlas regions referenced by the 10-group cognitive map, grouped by the group they primarily contribute to, with one-line functional notes. Your `cortical_region_zscores` must include every region listed here (name → float).
 
+**Sulcal and boundary regions default to near-baseline.** A substantial subset of these parcels are sulcal or anatomical-boundary regions that empirically act more as parcellation boundaries than as functional units — they barely move on cognitive tasks. The boundary set: `Lat_Fis-ant-Horizont`, `Lat_Fis-ant-Vertical`, `Lat_Fis-post`, `S_pericallosal`, `S_cingul-Marginalis`, `S_collat_transv_ant`, `S_collat_transv_post`, `S_circular_insula_ant`, `S_circular_insula_inf`, `S_circular_insula_sup`, `S_orbital-H_Shaped`, `S_orbital_med-olfact`, `S_orbital_lateral`, `S_suborbital`, `S_interm_prim-Jensen`, `S_subparietal`, `S_temporal_transverse`, `S_oc-temp_lat`, `S_oc-temp_med_and_Lingual`, `S_oc_middle_and_Lunatus`, `S_oc_sup_and_transversal`, `S_occipital_ant`, `S_parieto_occipital`. Default these to near-baseline (within roughly ±0.3 of 0) unless their parent gyrus is strongly engaged, in which case they may follow mildly (±0.3–0.6). Do not noise-fill them — leaving 20+ boundary regions at small random nonzero values corrupts the distribution shape and dilutes real signal in the gyral peaks.
+
 **G1 — Strategic (PFC)**
 - `G_front_sup` — superior frontal gyrus: working memory, planning, cognitive control
 - `G_front_middle` — middle frontal gyrus / DLPFC: executive function, working memory
@@ -233,7 +235,7 @@ The exercise portion describes an operation the learner is *actively performing*
 - **G1 (strategic)** — elevated when the lab has decision points, branches, or alternate paths. `Caudate` follows on reward-contingent reasoning.
 - **G6 (motivation)** — elevated by win milestones and payoff framing. `Accumbens` lifts on labs with clear reward structure (flags, privesc, shell-pop moments).
 - **G7 (memory)** — elevated by specific command+output+target bindings; `Hippocampus` lifts strongly for novel-technique-in-novel-context labs (where both the TTP and the target are new).
-- **G10 (DMN / reflective)** — often present via mental simulation ("imagine you're the attacker at this point"), especially in walkthroughs that narrate the operator's perspective.
+- **G10 (DMN / reflective)** — often present via mental simulation ("imagine you're the attacker at this point"), especially in walkthroughs that narrate the operator's perspective. *However*, on execution-dominant labs without reflective framing, G10 typically *suppresses* (negative z-scores): heavy external attention + SA load + procedural execution drive task-positive networks up and DMN below baseline via anti-correlation. Neutral G10 on a busy lab is a miscalibration; expect mild-to-moderate negative.
 
 **Offensive vs. defensive differentiation — these split the network differently:**
 - **Offensive labs** (exploitation, lateral movement, privilege escalation, post-exploitation) → lean harder into **G9** (adversarial stakes, detection fear, "don't trip the EDR") and **G2** (execution fluency, command chaining). `Amygdala` often co-lifts with the "will this detonate the trap" register that runs through careful offensive work. G1 lifts for attack-chain planning.
@@ -329,7 +331,7 @@ Background priors that ground reasonable predictions. Draw on these (and adjacen
 - **Cognitive Load Theory (Sweller)** — intrinsic load (inherent complexity) engages G1/G5 (WM, SA); extraneous load (poor presentation) suppresses G6 (motivation drops when effort feels wasted); germane load (well-structured productive difficulty) lifts G6 + G7.
 - **Theory of Mind (Saxe, Frith)** — TPJ + mPFC activate for mental-state attributions. Attacker/defender perspective language engages G8 and G10 (the human simulation circuits, coupled).
 - **Analogical reasoning (Gentner, Holyoak)** — angular gyrus + lateral PFC activate during structural mapping between a familiar source and a novel target. Well-formed analogies spike G8.
-- **Default Mode Network (Buckner, Raichle)** — DMN (PCC + precuneus + mPFC) engages for self-referential processing, mental simulation, and autobiographical retrieval — not for "rest" alone. Reader-directed reflection and imagined scenarios engage G10.
+- **Default Mode Network (Buckner, Raichle; Fox et al. anti-correlation)** — DMN (PCC + precuneus + mPFC) engages for self-referential processing, mental simulation, and autobiographical retrieval — not for "rest" alone. Reader-directed reflection and imagined scenarios engage G10. **DMN is anti-correlated with task-positive networks**: sustained externally-directed attention, executive control, and active task execution *suppress* DMN below baseline. On exercise-dominant modules without explicit reflective framing, expect G10 regions (`G_cingul-Post-dorsal`, `G_cingul-Post-ventral`, `G_precuneus`) to sit *below* 0 — neutral is the wrong default when the rest of the network is in task-positive mode.
 - **Motor planning from imperatives (Rizzolatti mirror-neuron line)** — reading imperatives engages M1/SMA in covert motor simulation. Dense imperatives engage G2 even without any physical action — this is a real BOLD signal, not metaphor.
 - **Visual cortex hierarchy (Felleman & Van Essen; Cohen's visual word form area)** — V1 → V2 → V4 → ventral object stream; VWFA (`G_oc-temp_lat-fusifor`) is a specialized region for letter-string recognition that is engaged by *any* text reading, even without diagrams. Upstream visual regions (`G_cuneus`, `S_calcarine`, `Pole_occipital`, `G_oc-temp_med-Lingual`) need actual visual stimuli (scan output, diagrams, topology) to lift; they stay at baseline or below for pure prose. Expect within-G4 variability on pure-text modules — VWFA at baseline-or-above, early visual/scene regions mildly low.
 </neuroscience_priors>
@@ -375,6 +377,10 @@ Failure modes that degrade accuracy even when individual heuristics are applied 
 5. **Dominant-group collapse.** One group at +2 and all others at -1. Real engagement is typically distributed across 3–6 groups in a graded way; rarely does a single group dominate the entire distribution.
 
 6. **Incoherent cortical/subcortical.** G7 high while `Hippocampus` sits near 0, or G9 high while `Amygdala` sits near 0, without any text-specific reason. Fix: align them (see cortical ↔ subcortical coherence under `<interaction_effects>`).
+
+7. **Noise-filling sulcal boundaries.** Assigning small nonzero values across the ~20 sulcal/boundary parcels listed in `<destrieux_regions>`. These act as parcellation boundaries, not functional units, and barely move on cognitive tasks. Fix: keep them within ±0.3 of 0 unless the parent gyrus is strongly engaged.
+
+8. **Neutral DMN on execution-dominant labs.** Leaving G10 regions (`G_cingul-Post-dorsal`, `G_cingul-Post-ventral`, `G_precuneus`) near 0 on exercise-heavy modules with no reflective framing. DMN is anti-correlated with task-positive networks — heavy external attention and procedural execution *suppress* DMN. Fix: on busy labs without reflective prompts, G10 should sit mildly-to-moderately negative, not neutral.
 </common_pitfalls>
 
 <output_schema>
