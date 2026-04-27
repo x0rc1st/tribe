@@ -46,7 +46,7 @@ pip install torch==2.8.0 torchvision==0.23.0 --index-url https://download.pytorc
 # ---- 4. Install htb-brain dependencies ----
 echo ">>> Installing htb-brain deps..."
 pip install pydantic-settings fastapi "uvicorn[standard]" python-multipart httpx \
-    trimesh pygltflib scipy scikit-image hf_transfer 2>&1 | tail -3
+    trimesh pygltflib scipy scikit-image hf_transfer "anthropic>=0.39.0" 2>&1 | tail -3
 
 # ---- 5. Fix hf_transfer in uvx cache (for WhisperX) ----
 echo ">>> Fixing hf_transfer in uvx environments..."
@@ -82,6 +82,7 @@ python3 -c "from tribev2 import TribeModel; print('tribev2 OK')"
 python3 -c "import fastapi; print('fastapi OK')"
 python3 -c "import nilearn; print('nilearn OK')"
 python3 -c "import lightning; print('lightning OK')"
+python3 -c "import anthropic; print('anthropic OK')"
 
 # Check subcortical checkpoint
 if [ -f "/workspace/tribe/subcortical_training/results/best.ckpt" ]; then
