@@ -54,16 +54,27 @@ TOP_N = 3
 # ---------------------------------------------------------------------------
 
 
-def classify_completion(group_z_scores: dict[int, float]) -> str:
+def _rank_positive(group_z_scores: dict[int, float]) -> list[tuple[int, float]]:
+    return sorted(
+        ((gid, z) for gid, z in group_z_scores.items() if z > 0),
+        key=lambda x: x[1],
+        reverse=True,
+    )
+
+
+def classify_completion(
+    group_z_scores: dict[int, float],
+    top_n: int = TOP_N,
+) -> str:
     """Classify a completion using the top activated brain regions.
 
     Takes the 10 cognitive group z-scores from a TRIBE v2 prediction
     and returns the completion type for Algorithm v3.2 point assignment.
 
     The decision priority:
-        1. Operational  — G9 (threat) AND G1/G5/G8 both in top 3
+        1. Operational  — G9 (threat) AND G1/G5/G8 both in top N
                           Co-activation = performing under arousal (Arnsten 2009).
-        2. Procedural   — G2 (sensorimotor) in top 3
+        2. Procedural   — G2 (sensorimotor) in top N
                           Motor circuit engagement = building automaticity
                           (Fitts & Posner 1967).
         3. Conceptual   — default (fronto-parietal network or any other pattern)
@@ -72,36 +83,77 @@ def classify_completion(group_z_scores: dict[int, float]) -> str:
 
     Args:
         group_z_scores: {group_id (1-10): z_score} from TRIBE v2 prediction.
+        top_n: How many top-ranked positive groups to consider (defaults to TOP_N=3).
 
     Returns:
         One of ``'procedural'``, ``'conceptual'``, or ``'operational'``.
     """
-    # Rank groups by z-score, keep only positive activations
-    ranked = sorted(
-        ((gid, z) for gid, z in group_z_scores.items() if z > 0),
-        key=lambda x: x[1],
-        reverse=True,
-    )
-    top = {gid for gid, _ in ranked[:TOP_N]}
+    top = {gid for gid, _ in _rank_positive(group_z_scores)[:top_n]}
 
-    # 1. Operational: threat + executive co-activation in top regions.
-    #    Arnsten mechanism — prefrontal must be active WHILE threat circuit
-    #    fires.  G2+G9 without cognitive groups is stress-induced SRK
-    #    regression (a failure mode), not operational readiness.
     if 9 in top and top & COGNITIVE_GROUPS:
         return "operational"
-
-    # 2. Procedural: sensorimotor dominant.
-    #    Fitts & Posner — content engages motor planning, action sequencing,
-    #    and procedural memory (putamen/pallidum habit formation).
     if 2 in top:
         return "procedural"
-
-    # 3. Conceptual: fronto-parietal control network or any remaining pattern.
-    #    Klein NDM + Endsley SA.  Also the correct default when top groups
-    #    are G3 (language), G4 (visual), G6 (motivation), G7 (memory),
-    #    or G10 (reflective) — all represent conceptual learning.
     return "conceptual"
+
+
+def classify_completion_detailed(
+    group_z_scores: dict[int, float],
+    top_n: int = TOP_N,
+    group_names: dict[int, str] | None = None,
+) -> dict:
+    """Classify and return the supporting evidence (rule, top groups, triggers).
+
+    Mirrors ``classify_completion`` but exposes which groups were inspected
+    and which decision rule fired so callers can show the user *why*.
+    """
+    ranked = _rank_positive(group_z_scores)
+    top_pairs = ranked[:top_n]
+    top_ids = {gid for gid, _ in top_pairs}
+    cog_in_top = sorted(top_ids & COGNITIVE_GROUPS)
+
+    if 9 in top_ids and cog_in_top:
+        ctype = "operational"
+        triggered = [9] + cog_in_top
+        rule = (
+            "G9 (threat) co-activates with fronto-parietal control "
+            f"({', '.join(f'G{g}' for g in cog_in_top)}) — "
+            "Arnsten prefrontal-under-arousal."
+        )
+    elif 2 in top_ids:
+        ctype = "procedural"
+        triggered = [2]
+        rule = (
+            "G2 (sensorimotor) is in top groups — "
+            "Fitts & Posner motor circuit / habit formation."
+        )
+    elif cog_in_top:
+        ctype = "conceptual"
+        triggered = cog_in_top
+        rule = (
+            "Fronto-parietal control network "
+            f"({', '.join(f'G{g}' for g in cog_in_top)}) dominant — "
+            "Klein NDM + Endsley SA."
+        )
+    else:
+        ctype = "conceptual"
+        triggered = sorted(top_ids)
+        rule = (
+            "No threat / sensorimotor / fronto-parietal markers in top groups — "
+            "default to conceptual."
+        )
+
+    names = group_names or {}
+    return {
+        "type": ctype,
+        "top_n": top_n,
+        "rule": rule,
+        "triggered_group_ids": triggered,
+        "top_groups": [
+            {"id": gid, "name": names.get(gid, f"G{gid}"), "z_score": float(z)}
+            for gid, z in top_pairs
+        ],
+    }
 
 
 def completion_points(completion_type: str) -> int:

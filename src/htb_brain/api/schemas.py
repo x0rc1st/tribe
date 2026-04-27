@@ -67,6 +67,21 @@ class OperatorDimensionsResponse(BaseModel):
     stress_resilience: DimensionResponse
 
 
+class CompletionTopGroup(BaseModel):
+    id: int
+    name: str
+    z_score: float
+
+
+class CompletionBreakdownEntry(BaseModel):
+    """Classification result for a specific top_n setting."""
+    type: str
+    top_n: int
+    rule: str
+    triggered_group_ids: list[int]
+    top_groups: list[CompletionTopGroup]
+
+
 class PredictResponse(BaseModel):
     """Full response from the /api/v1/predict endpoint."""
     vertex_activations: list[float] = Field(
@@ -108,6 +123,14 @@ class PredictResponse(BaseModel):
             "'conceptual' (building mental models — fronto-parietal dominant), "
             "'procedural' (building motor skills — G2 sensorimotor dominant), or "
             "'operational' (performing under pressure — G9 threat + cognitive co-activation)"
+        ),
+    )
+    completion_breakdown: dict[str, CompletionBreakdownEntry] | None = Field(
+        default=None,
+        description=(
+            "Classification computed at multiple top-N settings (keys '3', '4', '5'). "
+            "Each entry exposes the decision rule and the top groups inspected so the "
+            "UI can justify the result and let the user explore N=4 and N=5."
         ),
     )
 

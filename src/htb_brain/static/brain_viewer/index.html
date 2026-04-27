@@ -38,6 +38,9 @@
             --neon-green:  #9FEF00;
             --cyan:        #2EE7B6;
             --danger:      #FF6B6B;
+            --procedural:  #2EE7B6;
+            --conceptual:  #BD93F9;
+            --operational: #FF6B6B;
             --mono:        'JetBrains Mono', 'Fira Code', monospace;
             --sans:        'Inter', system-ui, sans-serif;
         }
@@ -645,6 +648,20 @@
                 <p class="summary-empty">Submit content to see engagement summary.</p>
             </div>
         </div>
+
+        <div class="panel-section" id="completionSection">
+            <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+                <span>Completion Type</span>
+                <div id="completionNToggle" style="display:none;gap:0;align-items:center;font-size:10px;font-weight:400;" title="Re-classify using the top-N positive groups by z-score. Default N=3 = top 30%, the standard neuroimaging threshold.">
+                    <button type="button" class="n-btn active" data-n="3" style="padding:3px 8px;background:#2EE7B6;color:#0a0f1a;border:1px solid #2EE7B6;border-radius:3px 0 0 3px;cursor:pointer;font-size:10px;">N=3</button>
+                    <button type="button" class="n-btn" data-n="4" style="padding:3px 8px;background:transparent;color:#8896ab;border:1px solid #2EE7B6;border-left:none;border-right:none;cursor:pointer;font-size:10px;">N=4</button>
+                    <button type="button" class="n-btn" data-n="5" style="padding:3px 8px;background:transparent;color:#8896ab;border:1px solid #2EE7B6;border-radius:0 3px 3px 0;cursor:pointer;font-size:10px;">N=5</button>
+                </div>
+            </div>
+            <div id="completionCard">
+                <p class="summary-empty">Submit content to classify it as conceptual, procedural or operational.</p>
+            </div>
+        </div>
     </aside>
 </div>
 
@@ -673,6 +690,8 @@
     const historyList     = document.getElementById('historyList');
     const regionList      = document.getElementById('regionList');
     const summaryCard     = document.getElementById('summaryCard');
+    const completionCard  = document.getElementById('completionCard');
+    const completionNToggle = document.getElementById('completionNToggle');
     const radarChart      = document.getElementById('radarChart');
     const sensitivitySlider = document.getElementById('sensitivitySlider');
     const sensitivityLabel = document.getElementById('sensitivityLabel');
@@ -1073,6 +1092,13 @@
         }
         if (subcorticalRegions.length > 0) renderSubcorticalRegions(subcorticalRegions);
         if (summary) renderSummary(summary);
+
+        // Neuroscience re-blends groups client-side, so re-classify from those
+        // to keep the panel consistent with the radar/region list.
+        const breakdown = (mode === 'neuroscience' && result.group_scores_neuroscience)
+            ? buildBreakdownFromGroups(result.group_scores_neuroscience)
+            : result.completion_breakdown;
+        if (breakdown) renderCompletion(breakdown);
     }
 
     // ---- Handle API result ----
@@ -1362,6 +1388,120 @@
 
         summaryCard.innerHTML = `<div class="summary-card"><p>${html}</p></div>`;
     }
+
+    // ---- Completion classification (right panel, below summary) ----
+    // Mirrors src/htb_brain/core/completion_classifier.py so Neuroscience
+    // mode (which re-blends groups client-side) can re-classify locally.
+    const COMPLETION_COG_GROUPS = new Set([1, 5, 8]);
+
+    function classifyFromGroups(groups, topN) {
+        const positive = (groups || [])
+            .filter(g => typeof g.z_score === 'number' && g.z_score > 0)
+            .sort((a, b) => b.z_score - a.z_score);
+        const topPairs = positive.slice(0, topN);
+        const topIds = new Set(topPairs.map(g => g.id));
+        const cogInTop = [...topIds].filter(id => COMPLETION_COG_GROUPS.has(id)).sort((a, b) => a - b);
+        const cogLabel = cogInTop.map(g => 'G' + g).join(', ');
+
+        let type, triggered, rule;
+        if (topIds.has(9) && cogInTop.length > 0) {
+            type = 'operational';
+            triggered = [9, ...cogInTop];
+            rule = `G9 (threat) co-activates with fronto-parietal control (${cogLabel}) — Arnsten prefrontal-under-arousal.`;
+        } else if (topIds.has(2)) {
+            type = 'procedural';
+            triggered = [2];
+            rule = 'G2 (sensorimotor) is in top groups — Fitts & Posner motor circuit / habit formation.';
+        } else if (cogInTop.length > 0) {
+            type = 'conceptual';
+            triggered = cogInTop;
+            rule = `Fronto-parietal control network (${cogLabel}) dominant — Klein NDM + Endsley SA.`;
+        } else {
+            type = 'conceptual';
+            triggered = [...topIds].sort((a, b) => a - b);
+            rule = 'No threat / sensorimotor / fronto-parietal markers in top groups — default to conceptual.';
+        }
+
+        return {
+            type,
+            top_n: topN,
+            rule,
+            triggered_group_ids: triggered,
+            top_groups: topPairs.map(g => ({ id: g.id, name: g.name, z_score: g.z_score })),
+        };
+    }
+
+    function buildBreakdownFromGroups(groups) {
+        return {
+            '3': classifyFromGroups(groups, 3),
+            '4': classifyFromGroups(groups, 4),
+            '5': classifyFromGroups(groups, 5),
+        };
+    }
+
+    let _completionBreakdown = null;
+    let _completionN = '3';
+
+    function renderCompletion(breakdown, nKey) {
+        _completionBreakdown = breakdown || null;
+        if (nKey) _completionN = String(nKey);
+
+        if (!_completionBreakdown) {
+            completionCard.innerHTML = '<p class="summary-empty">Submit content to classify it as conceptual, procedural or operational.</p>';
+            completionNToggle.style.display = 'none';
+            return;
+        }
+
+        const entry = _completionBreakdown[_completionN];
+        if (!entry) {
+            completionCard.innerHTML = '<p class="summary-empty">Classification unavailable for this N.</p>';
+            return;
+        }
+
+        completionNToggle.style.display = 'inline-flex';
+        setNButtonStyles();
+
+        const color = `var(--${entry.type})`;
+        const label = entry.type.toUpperCase();
+        const triggered = new Set(entry.triggered_group_ids || []);
+
+        const groupRows = (entry.top_groups || []).map((g, idx) => {
+            const isTrigger = triggered.has(g.id);
+            const tagColor = isTrigger ? color : 'var(--text-muted)';
+            const tag = isTrigger ? ' ◆' : '';
+            return `<li style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--border);">
+                <span style="color:${tagColor};font-family:var(--mono);font-size:11px;">#${idx + 1} G${g.id} — ${escHtml(g.name)}${tag}</span>
+                <span style="font-family:var(--mono);font-size:11px;color:var(--text-secondary);">z=${g.z_score.toFixed(2)}</span>
+            </li>`;
+        }).join('');
+
+        completionCard.innerHTML = `
+            <div class="summary-card" style="border-left-color:${color};">
+                <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:10px;">
+                    <span style="color:${color};font-family:var(--mono);font-size:18px;font-weight:600;letter-spacing:0.05em;">${label}</span>
+                    <span style="color:var(--text-muted);font-size:11px;font-family:var(--mono);">classified at top-${entry.top_n}</span>
+                </div>
+                <p style="font-size:12px;line-height:1.6;color:var(--text-secondary);margin-bottom:10px;">${escHtml(entry.rule)}</p>
+                <ul style="list-style:none;padding:0;margin:0;">${groupRows}</ul>
+                <p style="font-size:10px;color:var(--text-muted);margin-top:8px;font-family:var(--mono);">◆ = group that triggered the rule</p>
+            </div>
+        `;
+    }
+
+    function setNButtonStyles() {
+        completionNToggle.querySelectorAll('.n-btn').forEach(btn => {
+            const active = btn.dataset.n === _completionN;
+            btn.classList.toggle('active', active);
+            btn.style.background = active ? '#2EE7B6' : 'transparent';
+            btn.style.color = active ? '#0a0f1a' : '#8896ab';
+        });
+    }
+
+    completionNToggle.addEventListener('click', (e) => {
+        const btn = e.target.closest('.n-btn');
+        if (!btn) return;
+        renderCompletion(_completionBreakdown, btn.dataset.n);
+    });
 
     // ---- Prediction History (localStorage) ----
     const HISTORY_KEY = 'tribe_v2_history';
