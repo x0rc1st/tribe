@@ -14,6 +14,13 @@ fi
 
 export PYTHONPATH=/workspace/tribe/src:/workspace/tribev2
 
+# Anthropic API key for the Claude predictor route. Hardcoded for runpod
+# convenience — env var still wins if pre-set.
+export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY:-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}"
+
+# Suppress HuggingFace tokenizers fork-after-parallel KeyError seen in this stack.
+export TOKENIZERS_PARALLELISM=false
+
 # Subcortical model (auto-detect if checkpoint exists)
 if [ -f /workspace/tribe/subcortical_training/results/best.ckpt ]; then
     export HTB_BRAIN_SUBCORTICAL_CHECKPOINT_DIR=/workspace/tribe/subcortical_training/results

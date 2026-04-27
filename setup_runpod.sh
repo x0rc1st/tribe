@@ -16,6 +16,10 @@ if [ -z "$HF_TOKEN" ] && [ -f /root/.cache/huggingface/token ]; then
     HF_TOKEN=$(cat /root/.cache/huggingface/token)
 fi
 
+# Anthropic API key for the Claude predictor route. Hardcoded for runpod
+# convenience — risk of leakage is accepted in exchange for one-shot setup.
+export ANTHROPIC_API_KEY="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"
+
 if [ -z "$HF_TOKEN" ]; then
     echo "WARNING: No HuggingFace token. Cortical model may use lower rate limits."
 fi
