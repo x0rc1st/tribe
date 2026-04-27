@@ -16,9 +16,14 @@ from pydantic import BaseModel, Field
 
 from htb_brain.core.completion_classifier import (
     COGNITIVE_GROUPS,
+    DEFAULT_TAU,
+    THRESHOLDS,
     TOP_N,
+    bucket_contributions,
     classify_completion,
     completion_points,
+    compose,
+    raw_intensities,
 )
 
 logger = logging.getLogger(__name__)
@@ -67,10 +72,23 @@ def _mock_z_scores(entity_id: str) -> dict[int, float]:
 
 
 def _build_response(entity_id: str) -> dict:
-    """Build a full classification response for one entity."""
+    """Build a full classification response for one entity.
+
+    The shape preserves Algorithm v3.2 fields (``completion_type``, ``points``,
+    ``group_z_scores``, ``groups_ranked``) and additively exposes the
+    continuous composition values defined in NEURAL_COMPLETION_COMPOSITION.md
+    (``raw_intensities``, ``composition``, ``thresholds``,
+    ``bucket_contributions``, ``total_points``) so consumers can calculate
+    mastery the new way without breaking existing callers.
+    """
     group_z_scores = _mock_z_scores(entity_id)
     completion_type = classify_completion(group_z_scores)
     points = completion_points(completion_type)
+
+    # Continuous composition (NEURAL_COMPLETION_COMPOSITION.md §3, §4.2).
+    raw_c, raw_p, raw_o = raw_intensities(group_z_scores)
+    s_c, s_p, s_o = compose(group_z_scores, tau=DEFAULT_TAU)
+    delta_c, delta_p, delta_o = bucket_contributions((s_c, s_p, s_o))
 
     # Build ranked group list
     ranked = sorted(group_z_scores.items(), key=lambda x: x[1], reverse=True)
@@ -101,6 +119,24 @@ def _build_response(entity_id: str) -> dict:
         "points": points,
         "group_z_scores": {str(k): v for k, v in group_z_scores.items()},
         "groups_ranked": groups,
+        "raw_intensities": {
+            "conceptual": round(raw_c, 4),
+            "procedural": round(raw_p, 4),
+            "operational": round(raw_o, 4),
+        },
+        "composition": {
+            "conceptual": round(s_c, 4),
+            "procedural": round(s_p, 4),
+            "operational": round(s_o, 4),
+        },
+        "thresholds": dict(THRESHOLDS),
+        "bucket_contributions": {
+            "conceptual": round(delta_c, 4),
+            "procedural": round(delta_p, 4),
+            "operational": round(delta_o, 4),
+        },
+        "total_points": round(delta_c + delta_p + delta_o, 4),
+        "tau": DEFAULT_TAU,
     }
 
 

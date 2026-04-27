@@ -24,6 +24,8 @@ See docs/ plan for full neuroscience justification of each mapping.
 
 from __future__ import annotations
 
+import math
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -159,3 +161,108 @@ def classify_completion_detailed(
 def completion_points(completion_type: str) -> int:
     """Return the mastery points for a completion type."""
     return POINTS[completion_type]
+
+
+# ---------------------------------------------------------------------------
+# Composition (NEURAL_COMPLETION_COMPOSITION.md)
+# ---------------------------------------------------------------------------
+#
+# Continuous per-text scoring across the three mastery dimensions.
+# Additive to the discrete classifier above — `classify_completion()` is
+# preserved for backward compatibility and equals `argmax(compose(z, tau→0))`.
+# ---------------------------------------------------------------------------
+
+# Per-dimension mastery thresholds (§4.1). These also double as the
+# per-completion contribution weights — there is no separate `base_points`
+# constant. T_c + T_p + T_o = 100, identical scale to Algorithm v3.2.
+THRESHOLD_CONCEPTUAL = 20
+THRESHOLD_PROCEDURAL = 30
+THRESHOLD_OPERATIONAL = 50
+
+THRESHOLDS: dict[str, int] = {
+    "conceptual": THRESHOLD_CONCEPTUAL,
+    "procedural": THRESHOLD_PROCEDURAL,
+    "operational": THRESHOLD_OPERATIONAL,
+}
+
+# Default softmax temperature for compose() (§3.3).
+DEFAULT_TAU = 1.0
+
+# SRK regression penalty scale — motor-over-cognitive excess subtracted from
+# the operational raw intensity (§3.1, Arnsten 2009 / Rasmussen SRK).
+LAMBDA_REGRESSION = 1.0
+
+
+def raw_intensities(
+    group_z_scores: dict[int, float],
+    lambda_regression: float = LAMBDA_REGRESSION,
+) -> tuple[float, float, float]:
+    """Return raw (conceptual, procedural, operational) intensities from z-scores.
+
+    Negative z-scores are clipped to 0 — sub-baseline activation does not
+    contribute to any mastery dimension. See §3.1.
+    """
+    z = group_z_scores
+
+    # Fronto-parietal control network strength: best of G1 / G5 / G8.
+    # Cole et al. 2013 — flexible-hub network.
+    cog_max = max(z.get(1, 0.0), z.get(5, 0.0), z.get(8, 0.0))
+
+    # Procedural — sensorimotor strength (G2).
+    proc = max(0.0, z.get(2, 0.0))
+
+    # Conceptual — best of the three control-network groups.
+    conc = max(0.0, cog_max)
+
+    # Operational — Nichols et al. 2005 minimum statistic for genuine
+    # conjunction of threat (G9) AND cognitive engagement.
+    op_conjunction = min(max(0.0, z.get(9, 0.0)), max(0.0, cog_max))
+
+    # SRK regression guard: motor dominant over cognitive while threat is
+    # active is a documented failure mode (Arnsten 2009). Penalty is linear
+    # and one-sided — cognitive ≥ motor incurs no penalty.
+    regression_penalty = lambda_regression * max(0.0, z.get(2, 0.0) - cog_max)
+    op = max(0.0, op_conjunction - regression_penalty)
+
+    return conc, proc, op
+
+
+def compose(
+    group_z_scores: dict[int, float],
+    tau: float = DEFAULT_TAU,
+    lambda_regression: float = LAMBDA_REGRESSION,
+) -> tuple[float, float, float]:
+    """Return the (conceptual, procedural, operational) composition vector.
+
+    The vector sums to 1.0. Temperature ``tau`` controls sharpness:
+      tau → 0   reproduces the discrete classifier (one-hot)
+      tau = 1   default — moderate mixing
+      tau → ∞   uniform distribution
+
+    See §3.3.
+    """
+    conc, proc, op = raw_intensities(group_z_scores, lambda_regression)
+    scaled = [conc / tau, proc / tau, op / tau]
+    m = max(scaled)
+    exps = [math.exp(s - m) for s in scaled]
+    total = sum(exps)
+    return exps[0] / total, exps[1] / total, exps[2] / total
+
+
+def bucket_contributions(
+    composition: tuple[float, float, float],
+    thresholds: tuple[int, int, int] = (
+        THRESHOLD_CONCEPTUAL,
+        THRESHOLD_PROCEDURAL,
+        THRESHOLD_OPERATIONAL,
+    ),
+) -> tuple[float, float, float]:
+    """Return (delta_c, delta_p, delta_o) — points to add to each bucket.
+
+    Per-completion total ranges from 20 (pure conceptual) to 50 (pure
+    operational). The "1-of-each pure" path delivers exactly 100 points
+    across the three buckets, matching Algorithm v3.2 mastery. See §4.2.
+    """
+    s_c, s_p, s_o = composition
+    t_c, t_p, t_o = thresholds
+    return s_c * t_c, s_p * t_p, s_o * t_o
