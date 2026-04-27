@@ -21,8 +21,13 @@ from htb_brain.core.atlas import BrainAtlas
 from htb_brain.core.predictor import BrainPredictor
 from htb_brain.core.translator import Translator
 from htb_brain.core.completion_classifier import (
+    DEFAULT_TAU,
+    THRESHOLDS,
+    bucket_contributions,
     classify_completion,
     classify_completion_detailed,
+    compose,
+    raw_intensities,
 )
 from htb_brain.core.operator_readiness import detect_dimensions, extract_readiness_inputs
 from htb_brain.visualization.summary import generate_summary
@@ -160,6 +165,65 @@ def _merge_group_scores(cortical_groups: list, subcortical_group_scores: dict | 
     return _blend_groups(cortical_groups, subcortical_group_scores, betas)
 
 
+# ── Completion composition (NEURAL_COMPLETION_COMPOSITION.md) ────────────
+
+# How many top-ranked groups to surface alongside the C/P/O scores.
+# 5 = top 50% of the 10-group atlas — wide enough to show the runners-up
+# below the three classifier-relevant groups (G1/G2/G5/G8/G9) without
+# turning the panel into a full ranking.
+COMPOSITION_TOP_N = 5
+
+
+def _build_composition(
+    gs_dict: dict[int, float],
+    group_scores_dicts: list[dict],
+) -> dict:
+    """Per-text composition vector + bucket contributions + top engaged groups.
+
+    Mirrors the shape returned by ``/api/v1/classify`` so the brain viewer can
+    show the same conceptual / procedural / operational scores that ORI uses
+    when accumulating mastery from completions.
+    """
+    raw_c, raw_p, raw_o = raw_intensities(gs_dict)
+    s_c, s_p, s_o = compose(gs_dict, tau=DEFAULT_TAU)
+    delta_c, delta_p, delta_o = bucket_contributions((s_c, s_p, s_o))
+
+    ranked = sorted(
+        group_scores_dicts, key=lambda g: g.get("z_score", 0.0), reverse=True
+    )[:COMPOSITION_TOP_N]
+    top_groups = [
+        {
+            "id": g["id"],
+            "name": g["name"],
+            "z_score": round(float(g.get("z_score", 0.0)), 4),
+            "engagement_pct": round(float(g.get("engagement_pct", 0.0)), 1),
+        }
+        for g in ranked
+    ]
+
+    return {
+        "raw_intensities": {
+            "conceptual": round(raw_c, 4),
+            "procedural": round(raw_p, 4),
+            "operational": round(raw_o, 4),
+        },
+        "composition": {
+            "conceptual": round(s_c, 4),
+            "procedural": round(s_p, 4),
+            "operational": round(s_o, 4),
+        },
+        "thresholds": dict(THRESHOLDS),
+        "bucket_contributions": {
+            "conceptual": round(delta_c, 4),
+            "procedural": round(delta_p, 4),
+            "operational": round(delta_o, 4),
+        },
+        "total_points": round(delta_c + delta_p + delta_o, 4),
+        "tau": DEFAULT_TAU,
+        "top_groups": top_groups,
+    }
+
+
 # ── Pipeline ─────────────────────────────────────────────────────────────
 
 def _run_pipeline(
@@ -266,6 +330,7 @@ def _run_pipeline(
         str(n): classify_completion_detailed(gs_dict, top_n=n, group_names=group_names)
         for n in (3, 4, 5)
     }
+    completion_composition = _build_composition(gs_dict, group_scores_dicts)
 
     return {
         "vertex_activations": cortical_acts,
@@ -280,6 +345,7 @@ def _run_pipeline(
         "operator_readiness": operator_readiness,
         "completion_type": completion_type,
         "completion_breakdown": completion_breakdown,
+        "completion_composition": completion_composition,
     }
 
 

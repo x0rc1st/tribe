@@ -35,6 +35,7 @@ from htb_brain.api.routes.predict import (
     _get_vertex_groups,
     _blend_groups,
     _merge_group_scores,
+    _build_composition,
     NEUROSCIENCE_BETAS,
 )
 from htb_brain.core.atlas import BrainAtlas, N_VERTICES, N_LEFT
@@ -287,6 +288,7 @@ def _postprocess_claude_output(
         str(n): classify_completion_detailed(gs_dict, top_n=n, group_names=group_names)
         for n in (3, 4, 5)
     }
+    completion_composition = _build_composition(gs_dict, group_scores_dicts)
 
     return {
         "vertex_activations": cortical_acts_list,
@@ -301,6 +303,7 @@ def _postprocess_claude_output(
         "operator_readiness": operator_readiness,
         "completion_type": completion_type,
         "completion_breakdown": completion_breakdown,
+        "completion_composition": completion_composition,
         "prediction_engine": "claude",
     }
 

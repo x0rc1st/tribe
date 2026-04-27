@@ -82,6 +82,32 @@ class CompletionBreakdownEntry(BaseModel):
     top_groups: list[CompletionTopGroup]
 
 
+class CompositionVector(BaseModel):
+    """Continuous (conceptual, procedural, operational) values that sum to 1.0."""
+    conceptual: float
+    procedural: float
+    operational: float
+
+
+class CompositionTopGroup(BaseModel):
+    id: int
+    name: str
+    z_score: float
+    engagement_pct: float = 0.0
+
+
+class CompletionCompositionResponse(BaseModel):
+    """Per-text composition vector + bucket contributions in the same shape that
+    `/api/v1/classify` returns and that ORI uses to accumulate mastery."""
+    raw_intensities: CompositionVector
+    composition: CompositionVector
+    thresholds: dict[str, int]
+    bucket_contributions: CompositionVector
+    total_points: float
+    tau: float
+    top_groups: list[CompositionTopGroup]
+
+
 class PredictResponse(BaseModel):
     """Full response from the /api/v1/predict endpoint."""
     vertex_activations: list[float] = Field(
@@ -131,6 +157,14 @@ class PredictResponse(BaseModel):
             "Classification computed at multiple top-N settings (keys '3', '4', '5'). "
             "Each entry exposes the decision rule and the top groups inspected so the "
             "UI can justify the result and let the user explore N=4 and N=5."
+        ),
+    )
+    completion_composition: CompletionCompositionResponse | None = Field(
+        default=None,
+        description=(
+            "Continuous conceptual / procedural / operational scores for this text — "
+            "the same composition vector and bucket contributions that "
+            "/api/v1/classify returns and that ORI uses to accumulate mastery."
         ),
     )
 
