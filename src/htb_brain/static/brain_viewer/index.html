@@ -1444,6 +1444,16 @@
         };
     }
 
+    // Which cognitive groups feed which composition bucket (mirrors compose()
+    // in src/htb_brain/core/completion_classifier.py). Used both for the
+    // [C]/[P]/[O] tags in the engaged-groups list and as the legend in the
+    // hint shown when conceptual and operational scores tie.
+    const GROUP_DIMENSION = {
+        1: 'conceptual', 5: 'conceptual', 8: 'conceptual',
+        2: 'procedural',
+        9: 'operational',
+    };
+
     function renderCompletion(composition) {
         if (!composition) {
             completionCard.innerHTML = '<p class="summary-empty">Submit content to score its conceptual, procedural and operational composition.</p>';
@@ -1452,6 +1462,7 @@
 
         const dims = ['conceptual', 'procedural', 'operational'];
         const comp     = composition.composition || {};
+        const raw      = composition.raw_intensities || {};
         const buckets  = composition.bucket_contributions || {};
         const thresh   = composition.thresholds || COMPOSITION_THRESHOLDS;
         const total    = (typeof composition.total_points === 'number')
@@ -1463,6 +1474,13 @@
         for (const d of dims) {
             if ((buckets[d] || 0) > (buckets[dominant] || 0)) dominant = d;
         }
+
+        // Conceptual / operational tie: by construction op_conjunction =
+        // min(z9, cog_max) ≤ conc, so when z9 ≥ cog_max raw_C and raw_O are
+        // exactly equal — surface that explicitly so paired bars don't read
+        // as accidental.
+        const ceilingTied = (raw.conceptual || 0) > 0
+            && Math.abs((raw.conceptual || 0) - (raw.operational || 0)) < 1e-6;
 
         const bars = dims.map(d => {
             const share  = comp[d] || 0;
@@ -1487,10 +1505,25 @@
             `;
         }).join('');
 
+        const tiedHint = ceilingTied
+            ? `<p style="font-size:10px;line-height:1.5;color:var(--text-muted);margin:6px 0 8px 0;">
+                  <span style="color:var(--operational);">◆</span> Conceptual and operational tied —
+                  operational is bounded by the cognitive ceiling (op = min(z<sub>9</sub>, max(z<sub>1</sub>, z<sub>5</sub>, z<sub>8</sub>))).
+               </p>`
+            : '';
+
+        const scaleCaption = `<p style="font-size:10px;line-height:1.5;color:var(--text-muted);margin:6px 0 0 0;">
+                Per-text points range 20–50; mastery accumulates toward 100 across completions.
+            </p>`;
+
         const groupRows = (composition.top_groups || []).map((g, idx) => {
             const z = (typeof g.z_score === 'number') ? g.z_score.toFixed(2) : '—';
+            const dim = GROUP_DIMENSION[g.id];
+            const tag = dim
+                ? `<span style="color:var(--${dim});font-size:10px;margin-left:6px;">[${dim[0].toUpperCase()}]</span>`
+                : '';
             return `<li style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dashed var(--border);">
-                <span style="font-family:var(--mono);font-size:11px;color:var(--text-secondary);">#${idx + 1} G${g.id} — ${escHtml(g.name)}</span>
+                <span style="font-family:var(--mono);font-size:11px;color:var(--text-secondary);">#${idx + 1} G${g.id} — ${escHtml(g.name)}${tag}</span>
                 <span style="font-family:var(--mono);font-size:11px;color:var(--text-secondary);">z=${z}</span>
             </li>`;
         }).join('');
@@ -1500,9 +1533,11 @@
         completionCard.innerHTML = `
             <div class="summary-card" style="border-left-color:${dominantColor};">
                 ${bars}
-                <div style="display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);font-size:11px;margin-top:6px;padding-top:8px;border-top:1px solid var(--border);">
+                ${tiedHint}
+                ${scaleCaption}
+                <div style="display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);font-size:11px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
                     <span style="color:var(--text-muted);letter-spacing:0.05em;">TOTAL POINTS</span>
-                    <span style="color:var(--text-primary);font-weight:600;">${total.toFixed(1)} <span style="color:var(--text-muted);">/ 100</span></span>
+                    <span style="color:var(--text-primary);font-weight:600;">${total.toFixed(1)} <span style="color:var(--text-muted);">/ 50 (per-text max)</span></span>
                 </div>
                 <div style="margin-top:12px;">
                     <div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">Predicted groups engaged</div>
