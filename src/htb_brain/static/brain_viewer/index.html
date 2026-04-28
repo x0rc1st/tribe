@@ -631,7 +631,7 @@
         <div class="panel-section">
             <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;">
                 <span>Top Regions</span>
-                <div id="engineToggleWrap" style="display:none;gap:0;align-items:center;font-size:10px;font-weight:400;" title="Switch the prediction engine — Conservative and Neuroscience are TRIBE blends; Claude bypasses TRIBE and predicts from neuroscience priors.">
+                <div id="engineToggleWrap" style="display:inline-flex;gap:0;align-items:center;font-size:10px;font-weight:400;" title="Pick the prediction engine before clicking Predict — Conservative and Neuroscience use TRIBE; Claude bypasses TRIBE and predicts from neuroscience priors.">
                     <button type="button" class="engine-btn active" data-engine="conservative" style="padding:3px 8px;background:#2EE7B6;color:#0a0f1a;border:1px solid #2EE7B6;border-radius:3px 0 0 3px;cursor:pointer;font-size:10px;">Conservative</button>
                     <button type="button" class="engine-btn" data-engine="neuroscience" style="padding:3px 8px;background:transparent;color:#8896ab;border:1px solid #2EE7B6;border-left:none;border-right:none;cursor:pointer;font-size:10px;">Neuroscience</button>
                     <button type="button" class="engine-btn" data-engine="claude" style="padding:3px 8px;background:transparent;color:#8896ab;border:1px solid #2EE7B6;border-radius:0 3px 3px 0;cursor:pointer;font-size:10px;">Claude</button>
@@ -864,6 +864,10 @@
             return;
         }
 
+        // Video always goes through TRIBE — Claude can't process video.
+        const useClaude = !isVideo && _currentEngine === 'claude';
+        const submitEngine = useClaude ? 'claude' : (isVideo ? 'conservative' : _currentEngine);
+
         submitBtn.disabled = true;
         loadingOverlay.classList.remove('hidden');
 
@@ -871,7 +875,6 @@
             let response;
 
             if (isVideo) {
-                // Video upload → /api/v1/predict/video
                 showStatus(`Uploading video (${(videoFile.size / 1024 / 1024).toFixed(1)} MB)...`, 'info');
                 const formData = new FormData();
                 formData.append('file', videoFile);
@@ -881,8 +884,16 @@
                     method: 'POST',
                     body: formData,
                 });
+            } else if (useClaude) {
+                showStatus('Querying Claude (first call ~15 s)...', 'info');
+                const formData = new FormData();
+                formData.append('text', text);
+
+                response = await fetch('/api/v1/predict/claude', {
+                    method: 'POST',
+                    body: formData,
+                });
             } else {
-                // Text → /api/v1/predict
                 showStatus('Submitting text prediction...', 'info');
                 const formData = new FormData();
                 formData.append('text', text);
@@ -900,17 +911,16 @@
 
             const data = await response.json();
 
-            // If result returned directly (cache hit), use it immediately
             if (data.vertex_activations) {
-                handlePredictionResult(data, text);
+                handlePredictionResult(data, text, submitEngine);
                 return;
             }
 
-            // Otherwise we got a job_id — poll for completion
             if (data.job_id) {
-                showStatus(`Processing... (job ${data.job_id})`, 'info');
-                const result = await pollForResult(data.job_id);
-                handlePredictionResult(result, text);
+                const labelPrefix = useClaude ? 'Claude' : 'Processing';
+                showStatus(`${labelPrefix}... (job ${data.job_id})`, 'info');
+                const result = await pollForResult(data.job_id, useClaude);
+                handlePredictionResult(result, text, submitEngine);
             } else {
                 throw new Error('Unexpected response from server');
             }
@@ -922,10 +932,9 @@
             updateSubmitState();
         }
 
-        // Poll for job completion
-        async function pollForResult(jobId) {
-            const POLL_INTERVAL = 3000; // 3 seconds
-            const MAX_POLLS = 1200;     // 60 minutes max (video can take a while)
+        async function pollForResult(jobId, isClaude = false) {
+            const POLL_INTERVAL = isClaude ? 2000 : 3000;
+            const MAX_POLLS = isClaude ? 120 : 1200;
 
             for (let i = 0; i < MAX_POLLS; i++) {
                 await new Promise(r => setTimeout(r, POLL_INTERVAL));
@@ -935,18 +944,16 @@
 
                 const job = await resp.json();
 
-                if (job.status === 'complete') {
-                    return job;
-                }
+                if (job.status === 'complete') return job;
                 if (job.status === 'failed') {
                     throw new Error(job.error || 'Prediction failed');
                 }
 
-                // Update status with elapsed time
-                const elapsed = job.elapsed_seconds || (i * 3);
-                showStatus(`Processing... ${elapsed}s elapsed (first run is slow ~2-3 min)`, 'info');
+                const elapsed = job.elapsed_seconds || (i * (POLL_INTERVAL / 1000));
+                const label = isClaude ? `Claude thinking... ${elapsed}s` : `Processing... ${elapsed}s elapsed (first run is slow ~2-3 min)`;
+                showStatus(label, 'info');
             }
-            throw new Error('Prediction timed out after 10 minutes');
+            throw new Error(isClaude ? 'Claude prediction timed out after 4 minutes' : 'Prediction timed out after 10 minutes');
         }
     }
 
@@ -957,7 +964,6 @@
     // different narrative) that is fetched on demand and cached per-text.
     let _tribeResult = null;       // full /api/v1/predict response
     let _claudeResult = null;      // full /api/v1/predict/claude response
-    let _claudeInFlight = false;
     let _currentInputText = '';
     let _currentEngine = 'conservative';
 
@@ -982,74 +988,15 @@
     });
 
     async function switchEngine(target) {
-        if (target === 'claude') {
-            if (_claudeResult) {
-                _currentEngine = 'claude';
-                setEngineButtonStyles();
-                renderResultToViewer(_claudeResult);
-                return;
-            }
-            if (_claudeInFlight) return;
-            if (!_currentInputText) {
-                showStatus('Submit text first, then switch to Claude.', 'error');
-                return;
-            }
-            _claudeInFlight = true;
-            showStatus('Querying Claude (first call ~15 s)...', 'info');
-            loadingOverlay.classList.remove('hidden');
-            try {
-                const result = await fetchClaudePrediction(_currentInputText);
-                _claudeResult = result;
-                _currentEngine = 'claude';
-                setEngineButtonStyles();
-                renderResultToViewer(result);
-                showStatus('Claude prediction complete.', 'info');
-            } catch (err) {
-                showStatus(`Claude error: ${err.message}`, 'error');
-            } finally {
-                _claudeInFlight = false;
-                loadingOverlay.classList.add('hidden');
-            }
-            return;
-        }
-
-        // Conservative / Neuroscience — both use TRIBE activations, swap only groups.
-        if (!_tribeResult) {
-            showStatus('Run a TRIBE prediction first.', 'error');
-            return;
-        }
         _currentEngine = target;
         setEngineButtonStyles();
-        if (_currentEngine === 'claude') return;  // handled above
-        // If we're leaving Claude, restore TRIBE activations + subcortical
-        renderResultToViewer(_tribeResult, target);
-    }
 
-    async function fetchClaudePrediction(text) {
-        const formData = new FormData();
-        formData.append('text', text);
-        const resp = await fetch('/api/v1/predict/claude', {
-            method: 'POST',
-            body: formData,
-        });
-        if (!resp.ok) {
-            const body = await resp.text();
-            throw new Error(`Claude endpoint ${resp.status}: ${body.slice(0, 200)}`);
+        if (target === 'claude') {
+            if (_claudeResult) renderResultToViewer(_claudeResult, 'claude');
+            return;
         }
-        const data = await resp.json();
-        if (data.vertex_activations) return data;  // cache hit
-        if (!data.job_id) throw new Error('Unexpected Claude response');
-        // Poll the same /api/v1/jobs endpoint used for TRIBE.
-        for (let i = 0; i < 120; i++) {
-            await new Promise(r => setTimeout(r, 2000));
-            const pollResp = await fetch(`/api/v1/jobs/${data.job_id}`);
-            if (!pollResp.ok) throw new Error(`Poll failed: ${pollResp.status}`);
-            const job = await pollResp.json();
-            if (job.status === 'complete') return job;
-            if (job.status === 'failed') throw new Error(job.error || 'Claude job failed');
-            showStatus(`Claude thinking... ${job.elapsed_seconds || i*2}s`, 'info');
-        }
-        throw new Error('Claude prediction timed out after 4 minutes');
+
+        if (_tribeResult) renderResultToViewer(_tribeResult, target);
     }
 
     function renderResultToViewer(result, engineOverride) {
@@ -1097,34 +1044,30 @@
     }
 
     // ---- Handle API result ----
-    function handlePredictionResult(result, inputText) {
-        // API returns: vertex_activations, group_scores, narrative_summary, engaged_regions
-        // Plus subcortical: subcortical_regions, n_cortical_vertices, n_subcortical_vertices
+    function handlePredictionResult(result, inputText, engine = 'conservative') {
         const nSubcortical = result.n_subcortical_vertices || 0;
         const subcorticalRegions = result.subcortical_regions || [];
 
-        // Choose the right mesh: combined if subcortical data is present
         const meshFile = nSubcortical > 0
             ? '/static/brain_mesh_combined.glb'
             : '/static/brain_mesh.glb';
 
-        // Auto-create viewer if it doesn't exist yet
-        if (!viewer) {
-            createViewer(meshFile);
+        if (!viewer) createViewer(meshFile);
+
+        // Text changed → invalidate the other engine's cache.
+        const textChanged = _currentInputText !== (inputText || '');
+        if (engine === 'claude') {
+            _claudeResult = result;
+            if (textChanged) _tribeResult = null;
+        } else {
+            _tribeResult = result;
+            if (textChanged) _claudeResult = null;
         }
-
-        // Store the TRIBE result and reset Claude state. New TRIBE prediction =
-        // the cached Claude result no longer corresponds to the current text.
-        _tribeResult = result;
-        _claudeResult = null;
         _currentInputText = inputText || '';
-        _currentEngine = 'conservative';
+        _currentEngine = engine;
 
-        // Show the 3-state engine toggle now that we have a baseline prediction.
-        engineToggleWrap.style.display = 'inline-flex';
         setEngineButtonStyles();
-
-        renderResultToViewer(result, 'conservative');
+        renderResultToViewer(result, engine);
 
         const nCortical = result.n_cortical_vertices || 20484;
         const statusMsg = nSubcortical > 0
@@ -1133,7 +1076,6 @@
         showStatus(statusMsg, 'info');
         inputSection.classList.add('collapsed');
 
-        // Save to history
         savePrediction(inputText, result);
     }
 
